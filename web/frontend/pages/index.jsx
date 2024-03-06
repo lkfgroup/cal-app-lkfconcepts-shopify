@@ -160,6 +160,7 @@ export default function Index({ shop, authAxios }) {
     await authAxios.get('/api/products');
     setIsLoading(false);
     setShowModal(false);
+    formik.resetForm();
   };
   const handleChange = (value, id) => {
     if (id === 'delivery.availability') {
@@ -227,6 +228,8 @@ export default function Index({ shop, authAxios }) {
         <Button
           size="slim"
           onClick={() => {
+            formik.resetForm();
+
             getProductSettings(parseId(node.id));
 
             setProductId(parseId(node.id));
@@ -351,7 +354,7 @@ export default function Index({ shop, authAxios }) {
         <DatePicker
           month={month}
           year={year}
-          disableDatesBefore={new Date()}
+          disableDatesBefore={new Date((new Date()).valueOf() - 1000*60*60*24)}
           onChange={(e) => {
             if (e.end.getDate() === e.start.getDate()) {
               setDateValue(moment(e.start).format('dddd, MMMM DD, YYYY'));
@@ -691,6 +694,7 @@ export default function Index({ shop, authAxios }) {
             />
 
             <IndexTable
+              selectable={false}
               emptyState={emptyStateMarkup}
               resourceName={resourceName}
               itemCount={products.length}

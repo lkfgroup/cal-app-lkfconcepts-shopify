@@ -362,6 +362,7 @@ export default function Order({ authAxios, shop }) {
             />
 
             <IndexTable
+              selectable={false}
               emptyState={emptyStateMarkup}
               resourceName={resourceName}
               itemCount={orders.length}
