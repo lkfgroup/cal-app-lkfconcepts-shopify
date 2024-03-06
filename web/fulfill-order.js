@@ -42,6 +42,7 @@ const fulFillOrder = async (shop, order_id) => {
 
     return true;
   } catch (error) {
+    console.log("fulfill order error", JSON.stringify(error));
     return false;
   }
 }
