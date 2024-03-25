@@ -1,0 +1,201 @@
+<script src="https://code.jquery.com/ui/1.13.0/jquery-ui.js" defer="defer"></script>
+{% assign randomNumber = "now" | date: "%N" %}
+<script src="{{ 'datepicker.js' | asset_url | split: '?' | first }}?v={{ randomNumber }}" defer="defer"></script>
+<div id="lkf-datepicker-container">
+  <div class="product-block">
+    <div class="datepicker">
+      <div class="datepicker__inner">
+        <div class="datepicker__input">
+          <label for="Date-0-0">Select date</label>
+          <input class="arrival_date" type="text" id="Date-0-0" placeholder="Select date">
+        </div>
+        <div class="datepicker__input">
+          <label for="Arrival Time-0-1">Select time</label>
+          <select class="arrival_time">
+            <option value="" disabled selected>Select time</option>
+          </select>
+        </div>
+        <div class="datepicker__input">
+          <a class="btn">Check Availability</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+    /* Infinite Options by ShopPad - Styles for Date Picker */
+  #lkf-datepicker-container .datepicker {
+    position: relative;
+    width: 100%;
+  }
+
+  #lkf-datepicker-container .datepicker tr:after,
+  #lkf-datepicker-container .datepicker tr:before,
+  #lkf-datepicker-container .datepicker th:after,
+  #lkf-datepicker-container .datepicker th:before,
+  #lkf-datepicker-container .datepicker td:after,
+  #lkf-datepicker-container .datepicker td:before {
+    display: none !important;
+  }
+
+  #lkf-datepicker-container .ui-datepicker-inline {
+    margin: 0;
+    padding-top: 0;
+    background-color: #fff;
+    color: #333;
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 1000;
+  }
+
+  #lkf-datepicker-container .ui-datepicker-calendar {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+  }
+
+  #lkf-datepicker-container .ui-datepicker-calendar td,
+  #lkf-datepicker-container .ui-datepicker-calendar th {
+    cursor: pointer;
+    text-align: center !important;
+    padding: 5px !important;
+    height: 10px !important;
+    width: 10px !important;
+    background-color: #fff;
+    border: 1px solid #ddd;
+  }
+
+  #lkf-datepicker-container .ui-datepicker-calendar td:hover {
+    background: var(--colorTextBody);
+  }
+
+  #lkf-datepicker-container .ui-datepicker-calendar td:hover a {
+    color: #fff;
+  }
+
+  #lkf-datepicker-container .ui-datepicker-calendar td:hover span {
+    color: rgba(255,255,255,.8) !important;
+  }
+
+  #lkf-datepicker-container .ui-datepicker-header {
+    border: 1px solid #ddd;
+    border-bottom: 0;
+  }
+
+  #lkf-datepicker-container .ui-datepicker-title {
+    text-align: center;
+    padding: 10px;
+  }
+
+  #lkf-datepicker-container .ui-datepicker-prev {
+    float: left;
+    padding: 10px;
+  }
+
+  #lkf-datepicker-container .ui-datepicker-next {
+    float: right;
+    padding: 10px;
+  }
+
+  #lkf-datepicker-container .ui-icon {
+    cursor: pointer;
+  }
+
+  #lkf-datepicker-container .ui-state-disabled {
+    opacity: .5;
+  }
+
+  #lkf-datepicker-container .spb-productoptionswatch {
+    width: 80px !important;
+    height: 80px !important;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    align-content: space-around;
+  }
+
+  @media only screen and (max-width: 768px) {
+    #lkf-datepicker-container .spb-productoptionswatch {
+    margin-bottom: 8px;
+  }
+  }
+
+  @media only screen and (min-width: 769px) {
+    #lkf-datepicker-container .spb-productoptionswatch {
+    margin-right: 32px;
+  }
+  }
+
+
+
+  @media only screen and (min-width: 769px) {
+    #lkf-datepicker-container .spb-productoptionswatchwrapper {
+    display: flex !important;
+    align-items: center !important;
+    overflow-wrap: break-word;
+  }
+  }
+
+  @media only screen and (max-width: 768px) {
+    #lkf-datepicker-container .spb-productoptionswatchwrapper {
+    display: flex !important;
+    align-items: center !important;
+    flex-direction: column;
+    overflow-wrap: break-word;
+  }
+  }
+
+  #lkf-datepicker-container td .ui-state-default {
+    font-weight: 700;
+  }
+
+  .datepicker__inner {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    border: 1px solid;
+    border-color: var(--colorBorder);
+    padding: 15px;
+    justify-content: space-between;
+  }
+
+  .datepicker__inner .datepicker__input select {
+    width: 100%;
+  }
+
+  @media only screen and (max-width: 768px) {
+    .datepicker__inner {
+      display: block;
+    }
+
+    .datepicker__inner .datepicker__input:not(:last-child) {
+      margin-bottom: 15px;
+    } 
+
+    .datepicker__inner .datepicker__input input, .datepicker__inner .datepicker__input select {
+      width: auto;
+      max-width: 100%;
+    }
+  }
+</style>
+<script>
+  window.datepickerData = {
+    product: {{ product | json }},
+    moneyFormat: "{{ shop.money_format }}"
+  }
+</script>
+<!-- --colorTextBody -->
+
+{% schema %}
+{
+  "name": "LKF Concepts Datepicker",
+  "templates": ["product"],
+  "target": "section",
+  "settings": []
+}
+{% endschema %}
