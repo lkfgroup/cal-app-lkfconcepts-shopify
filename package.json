@@ -13,8 +13,8 @@
   },
   "dependencies": {
     "@hokify/agenda": "^6.3.0",
-    "@shopify/app": "3.46.1",
-    "@shopify/cli": "3.46.1",
+    "@shopify/app": "^3.57.1",
+    "@shopify/cli": "^3.57.1",
     "@shopify/polaris": "^10.49.1",
     "@shopify/shopify-api": "^7.2.0",
     "@shopify/shopify-app-session-storage-mongodb": "^1.0.9",

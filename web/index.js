@@ -151,13 +151,24 @@ app.use(express.json());
 
 app.post('/api/get_data', async (_req, res) => {
   try {
-
     const { product_id, shop } = _req.body
+    const result = await settingModel.findOne({ product_id, shop }).lean();
+    const shopData = await Shop.findOne({ shop });
+    const product = await shopify.api.rest.Product.find({
+      session: {
+        shop: shopData.shop,
+        accessToken: shopData.token
+      },
+      id: product_id,
+    });
+    const data = {
+      ...result,
+      product: product || {}
+    }
 
-    const result = await settingModel.findOne({ product_id, shop })
     res.status(200).send({
       success: true,
-      data: result || {}
+      data
     })
   } catch (error) {
     console.log(error),
@@ -272,15 +283,14 @@ app.post('/api/edit-settings', async (_req, res) => {
   }
 })
 
-app.get('/api/products', async (_req, res) => {
+app.post('/api/products', async (_req, res) => {
   try {
-
     let shop = _req.headers["shop"];
-    const { keySearch, after = null, before = null, limit = 100
-    } = _req.query
 
-    console.log(_req.query)
+    let { keySearch, after = null, before = null, limit = 100, vendor, product_type, status } = _req.body
+
     let shopData = await Shop.findOne({ shop });
+
     let client = new shopify.api.clients.Graphql({
       session: {
         shop: shopData.shop,
@@ -288,10 +298,42 @@ app.get('/api/products', async (_req, res) => {
       },
     });
 
-    const data = await client.query({
+    let filters = [
+      `${!after && before ? 'last' : 'first'}: ${limit}`,
+      `${!after && before ? 'before' : 'after'}: ${!after && before ? JSON.stringify(before) : after ? JSON.stringify(after) : null}`
+    ];
+
+    let query = [];
+
+    if (keySearch) {
+      query.push(`(title:*${keySearch}*)`)
+    }
+
+    if (vendor) {
+      let search = vendor.map((v) => {
+        return `vendor:'${v}'`;
+      })
+      query.push(`(${search.join(" OR ")})`);
+    }
+
+    if (product_type) {
+      let search = product_type.map((t) => {
+        return `product_type:'${t}'`;
+      })
+      query.push(`(${search.join(" OR ")})`);
+    }
+
+    if (status) {
+      query.push(`(status:${status})`)
+    }
+
+    if (query) {
+      filters.push(`query: "${query.join(" AND ")}"`)
+    }
+
+    let data = await client.query({
       data: `query {
-        products(${!after && before ? 'last' : 'first'}: ${limit},${!after && before ? 'before' : 'after'}:${!after && before ? JSON.stringify(before) : after ? JSON.stringify(after) : null},${keySearch ? `query: "title:*${keySearch}*"` : ""
-        }) {
+        products(${filters.join(",")}) {
           edges {
             node {
               id
