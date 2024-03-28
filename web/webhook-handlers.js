@@ -86,19 +86,19 @@ export default {
     },
   },
 
-  ORDERS_CREATE: {
-    deliveryMethod: DeliveryMethod.Http,
-    callbackUrl: "/api/webhooks",
-    callback: async (topic, shop, body, webhookId) => {
-      const payload = JSON.parse(body);
-      const webhook = new webhookModel({
-        shop,
-        topic,
-        webhookId,
-        payload
-      });
-      const data = await webhook.save();
-      processOrderCreatedWebhook(data);
-    },
-  },
+  // ORDERS_CREATE: {
+  //   deliveryMethod: DeliveryMethod.Http,
+  //   callbackUrl: "/api/webhooks",
+  //   callback: async (topic, shop, body, webhookId) => {
+  //     const payload = JSON.parse(body);
+  //     const webhook = new webhookModel({
+  //       shop,
+  //       topic,
+  //       webhookId,
+  //       payload
+  //     });
+  //     const data = await webhook.save();
+  //     processOrderCreatedWebhook(data);
+  //   },
+  // },
 };
