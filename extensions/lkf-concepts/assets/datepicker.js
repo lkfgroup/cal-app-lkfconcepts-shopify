@@ -482,18 +482,28 @@
       },
       altField: "#lkf-datepicker-container .datepicker input[type=text]",
       onSelect: function (date) {
-        if (
-          dataAPI["available_slot"].length > 0 &&
-          dataAPI["available_slot"][0]
-        ) {
-          renderTime(dataAPI["every_day"].time, date);
+        var dateSlots = [];
+        if (dataAPI?.available_slot_specific_dates_allowed && dataAPI?.available_slot_specific_dates?.length > 0) {
+          var selectedDate = jQuery.datepicker.formatDate("yy-mm-dd", new Date(date));
+          var find = dataAPI?.available_slot_specific_dates?.find((v) => v.date == selectedDate);
+          dateSlots = find?.slots || [];
+        } 
+        if (dateSlots?.length > 0) {
+          renderTime(dateSlots, date);
         } else {
-          let getDay = jQuery.datepicker
-            .formatDate("DD", new Date(date))
-            .toString()
-            .toLowerCase();
-          if (dataAPI[getDay]) {
-            renderTime(dataAPI[getDay].time, date);
+          if (
+            dataAPI["available_slot"].length > 0 &&
+            dataAPI["available_slot"][0]
+          ) {
+            renderTime(dataAPI["every_day"].time, date);
+          } else {
+            let getDay = jQuery.datepicker
+              .formatDate("DD", new Date(date))
+              .toString()
+              .toLowerCase();
+            if (dataAPI[getDay]) {
+              renderTime(dataAPI[getDay].time, date);
+            }
           }
         }
         _date = jQuery.datepicker.formatDate("yy-mm-dd", new Date(date));
@@ -551,7 +561,7 @@
     });
   }
 
-  let url = "https://cal-app.lkfconcepts.com";
+  let url = "https://lkf-concepts.simesy.com";
   // disableInputs();
   disableAddToCart();
   let advanced_notice = {};

@@ -34,6 +34,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router";
 import * as _ from 'lodash';
 import moment from 'moment';
+import SpecificDateSlotModal from '../../../components/SpecificDateSlotModal';
 
 export default function ProductConfiguration({ shop, authAxios }) {
   const params = useParams();
@@ -56,6 +57,7 @@ export default function ProductConfiguration({ shop, authAxios }) {
   const [selectedTab, setSelectedTab] = useState(0);
   const [showModalDiscount, setShowModalDiscount] = useState(false);
   const [product, setProduct] = useState({})
+  const [openSpecificDateSlotModal, setOpenSpecificDateSlotModal] = useState(false);
 
   const formik = useFormik({
     initialValues: {
@@ -75,6 +77,8 @@ export default function ProductConfiguration({ shop, authAxios }) {
         block_dates: [],
         reverse_block_dates: false,
         available_slot: [true],
+        available_slot_specific_dates_allowed: false,
+        available_slot_specific_dates: [],
         availability: ['every_day'],
         advanced_notice: {
           monday: {
@@ -412,34 +416,34 @@ export default function ProductConfiguration({ shop, authAxios }) {
   const renderDeliverySlot = () => {
     if (formik.values.delivery.available_slot[0]) {
       return (
-        <div style={{ marginTop: '30px' }}>
-          <FormLayout>
-            <p>Every day</p>
-            {formik.values.delivery.every_day.time?.map((time, index) => {
-              return (
-                <div style={{display: "flex"}}>
-                  <div style={{"flex": "1 1 auto"}}>
-                    <Select
-                      value={time}
-                      options={timeOptions}
-                      onChange={(e) => {
-                        const updatedTime = [...formik.values.delivery.every_day.time];
-                        updatedTime[index] = e;
-                        formik.setFieldValue('delivery.every_day.time', updatedTime);
-                      }}
-                    />
-                  </div>
-                  <div style={{"margin-left": "var(--p-space-1)", "flex": "0 0 auto"}}>
-                    <Button 
-                      icon={MobileCancelMajor}
-                      onClick={() => {
-                        formik.setFieldValue('delivery.every_day.time', formik.values.delivery.every_day.time.filter(t => t != time));
-                      }}
-                    />
-                  </div>
+        <div>
+          <div>Every day</div>
+          {formik.values.delivery.every_day.time?.map((time, index) => {
+            return (
+              <div style={{ display: "flex", padding: "var(--p-space-1) 0" }}>
+                <div style={{"flex": "1 1 auto"}}>
+                  <Select
+                    value={time}
+                    options={timeOptions}
+                    onChange={(e) => {
+                      const updatedTime = [...formik.values.delivery.every_day.time];
+                      updatedTime[index] = e;
+                      formik.setFieldValue('delivery.every_day.time', updatedTime);
+                    }}
+                  />
                 </div>
-              );
-            })}
+                <div style={{"margin-left": "var(--p-space-1)", "flex": "0 0 auto"}}>
+                  <Button 
+                    icon={MobileCancelMajor}
+                    onClick={() => {
+                      formik.setFieldValue('delivery.every_day.time', formik.values.delivery.every_day.time.filter(t => t != time));
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+          <div style={{ padding: "var(--p-space-1) 0" }}>
             <Button
               onClick={() => {
                 formik.setFieldValue('delivery.every_day.time', [...formik.values.delivery.every_day.time, '9:00']);
@@ -447,7 +451,7 @@ export default function ProductConfiguration({ shop, authAxios }) {
             >
               Add slot
             </Button>
-          </FormLayout>
+          </div>
         </div>
       );
     } else {
@@ -456,12 +460,11 @@ export default function ProductConfiguration({ shop, authAxios }) {
           <FormLayout>
             {Object.keys(formik.values.delivery).map((item, index) => {
               return formik.values.delivery[item].enabled === true ? (
-                <div style={{ marginTop: '30px' }}>
-                  <FormLayout>
+                <div>
                     <p style={{ textTransform: 'capitalize' }}>{item}</p>
                     {formik.values.delivery[item].time?.map((time, i) => {
                       return (
-                        <div style={{display: "flex"}}>
+                        <div style={{display: "flex", padding: "var(--p-space-1) 0"}}>
                           <div style={{"flex": "1 1 auto"}}>
                             <Select
                               value={time}
@@ -484,14 +487,15 @@ export default function ProductConfiguration({ shop, authAxios }) {
                         </div>
                       );
                     })}
-                    <Button
-                      onClick={() => {
-                        formik.setFieldValue(`delivery.${item}.time`, [...formik.values.delivery[item].time, '9:00']);
-                      }}
-                    >
-                      Add slot
-                    </Button>
-                  </FormLayout>
+                    <div style={{ padding: "var(--p-space-1) 0" }}>
+                      <Button
+                        onClick={() => {
+                          formik.setFieldValue(`delivery.${item}.time`, [...formik.values.delivery[item].time, '9:00']);
+                        }}
+                      >
+                        Add slot
+                      </Button>
+                    </div>
                 </div>
               ) : null;
             })}
@@ -588,7 +592,7 @@ export default function ProductConfiguration({ shop, authAxios }) {
     const { data } = await authAxios.post(`/api/get_data`, { product_id: productId, shop });
     setLoading(false);
     if (data.data.settings) {
-      formik.setFieldValue('delivery', data.data.settings);
+      formik.setFieldValue('delivery', _.merge(formik.initialValues.delivery, data.data.settings));
     }
     if (data.data.product) {
       setProduct(data.data.product);
@@ -622,17 +626,67 @@ export default function ProductConfiguration({ shop, authAxios }) {
               {formik.values.delivery.availability[0] === 'specific_date' && renderDeliveryDate('Available dates')}
 
               <LegacyCard.Section title="Available Slots">
-                <ChoiceList
-                  choices={[
-                    { label: 'Same every day of the week', value: true },
-                    { label: 'Different each day of the week', value: false },
-                  ]}
-                  name="delivery.available_slot"
-                  id="delivery.available_slot"
-                  selected={formik.values.delivery.available_slot}
-                  onChange={handleChange}
-                />
-                {renderDeliverySlot()}
+                <FormLayout>
+                  <ChoiceList
+                    choices={[
+                      { label: 'Same every day of the week', value: true },
+                      { label: 'Different each day of the week', value: false },
+                    ]}
+                    name="delivery.available_slot"
+                    id="delivery.available_slot"
+                    selected={formik.values.delivery.available_slot}
+                    onChange={handleChange}
+                  />
+                  {renderDeliverySlot()}
+                  <Checkbox
+                    key="delivery.available_slot_specific_dates_allowed"
+                    label="Specific dates of the year"
+                    name="delivery.available_slot_specific_dates_allowed"
+                    id="delivery.available_slot_specific_dates_allowed"
+                    checked={formik.values.delivery.available_slot_specific_dates_allowed}
+                    onChange={handleChange}
+                  />
+                  {formik.values.delivery.available_slot_specific_dates_allowed && <Button onClick={() => setOpenSpecificDateSlotModal(true)}>Add slots</Button>}
+                  {formik.values.delivery.available_slot_specific_dates_allowed &&
+                    <ResourceList
+                      selectable={false}
+                      itemCount={formik.values.delivery.available_slot_specific_dates?.length}
+                      items={formik.values.delivery.available_slot_specific_dates.sort(
+                        (a, b) => new Date(a.date) - new Date(b.date)
+                      )}
+                      renderItem={(item, id) => {
+                        let slots = item.slots.map((slot) => {
+                          let time = timeOptions.find((o) => o.value == slot);
+                          return time.label;
+                        })
+                        return (
+                          <ResourceItem id={id} name={item}>
+                            <LegacyStack distribution="equalSpacing">
+                              <Text>
+                                {moment(item.date, 'YYYY-MM-DD').format('dddd, MMMM DD, YYYY')}{' - '}{slots.join(", ")}
+                              </Text>
+                              <Button
+                                size="slim"
+                                onClick={() => {
+                                  formik.setFieldValue(
+                                    'delivery.available_slot_specific_dates',
+                                    formik.values.delivery.available_slot_specific_dates.filter(
+                                      (v) => v.date !== item.date
+                                    )
+                                  );
+                                }}
+                                plain
+                                monochrome
+                              >
+                                <Icon source={DeleteMajor} />
+                              </Button>
+                            </LegacyStack>
+                          </ResourceItem>
+                        );
+                      }}
+                    />
+                  }
+                </FormLayout>
               </LegacyCard.Section>
               {!formik.values.delivery.reverse_block_dates && renderDeliveryDate('Block Dates')}
               <LegacyCard.Section title="Preparation times">
@@ -767,6 +821,7 @@ export default function ProductConfiguration({ shop, authAxios }) {
               </LegacyCard.Section>
             </LegacyCard>
           </Modal>
+          <SpecificDateSlotModal open={openSpecificDateSlotModal} setOpen={setOpenSpecificDateSlotModal} formik={formik} />
         </Layout>
       </Page>
     )
