@@ -35,6 +35,7 @@ import { useParams } from "react-router";
 import * as _ from 'lodash';
 import moment from 'moment';
 import SpecificDateSlotModal from '../../../components/SpecificDateSlotModal';
+import BlockDateModal from '../../../components/BlockDateModal';
 
 export default function ProductConfiguration({ shop, authAxios }) {
   const params = useParams();
@@ -58,6 +59,7 @@ export default function ProductConfiguration({ shop, authAxios }) {
   const [showModalDiscount, setShowModalDiscount] = useState(false);
   const [product, setProduct] = useState({})
   const [openSpecificDateSlotModal, setOpenSpecificDateSlotModal] = useState(false);
+  const [openBlockDateModal, setOpenBlockDateModal] = useState(false);
 
   const formik = useFormik({
     initialValues: {
@@ -688,7 +690,50 @@ export default function ProductConfiguration({ shop, authAxios }) {
                   }
                 </FormLayout>
               </LegacyCard.Section>
-              {!formik.values.delivery.reverse_block_dates && renderDeliveryDate('Block Dates')}
+              {!formik.values.delivery.reverse_block_dates &&
+                <LegacyCard.Section title="Block dates">
+                  <FormLayout>
+                  <Button onClick={() => setOpenBlockDateModal(true)}>Add dates</Button>
+                  <ResourceList
+                    selectable={false}
+                    itemCount={formik.values.delivery.block_dates?.length}
+                    items={formik.values.delivery.block_dates.sort(
+                      (a, b) => new Date(a.date) - new Date(b.date)
+                    )}
+                    renderItem={(item, id) => {
+                      let times = item.times.map((t) => {
+                        let time = timeOptions.find((o) => o.value == t);
+                        return time.label;
+                      })
+                      return (
+                        <ResourceItem id={id} name={item}>
+                          <LegacyStack distribution="equalSpacing">
+                            <Text>
+                              {moment(item.date, 'YYYY-MM-DD').format('dddd, MMMM DD, YYYY')}{' - '}{times?.length > 0 ? times.join(", ") : "Entire day"}
+                            </Text>
+                            <Button
+                              size="slim"
+                              onClick={() => {
+                                formik.setFieldValue(
+                                  'delivery.block_dates',
+                                  formik.values.delivery.block_dates.filter(
+                                    (v) => v.date !== item.date
+                                  )
+                                );
+                              }}
+                              plain
+                              monochrome
+                            >
+                              <Icon source={DeleteMajor} />
+                            </Button>
+                          </LegacyStack>
+                        </ResourceItem>
+                      );
+                    }}
+                  />
+                  </FormLayout>
+                </LegacyCard.Section>
+              }
               <LegacyCard.Section title="Preparation times">
                 <LegacyTabs tabs={tabs} selected={selectedTab} onSelect={handleTabChange} fitted>
                   <LegacyCard.Section>
@@ -822,6 +867,7 @@ export default function ProductConfiguration({ shop, authAxios }) {
             </LegacyCard>
           </Modal>
           <SpecificDateSlotModal open={openSpecificDateSlotModal} setOpen={setOpenSpecificDateSlotModal} formik={formik} />
+          <BlockDateModal open={openBlockDateModal} setOpen={setOpenBlockDateModal} formik={formik} />
         </Layout>
       </Page>
     )

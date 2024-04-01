@@ -95,7 +95,18 @@
     const minutes = dateNow.getMinutes();
     return `${hour}:${minutes}`;
   }
-  function renderTime(time, date) {
+  function checkBlockDateTimes(time, date, blockDates) {
+    let blockDate = blockDates.find(d => d.date == date);
+    if (!blockDate) {
+      return true;
+    }
+    let times = blockDate.times;
+    if (times.length > 0 && !times.includes(time)) {
+      return true;
+    }
+    return false;
+  }
+  function renderTime(time, date, blockDates) {
     let addElement = ``;
     let dayLabel = jQuery.datepicker
       .formatDate("DD", new Date())
@@ -105,6 +116,7 @@
     const timeNowHHMM = getNowHHMM();
     const minutesNowHHM = convertTimeToMinutes(timeNowHHMM);
     let dateYYMMDD = getNowYYMMDD(date);
+    time = time.filter(t => checkBlockDateTimes(t, dateYYMMDD, blockDates));
     if (
       advanced_notice[dayLabel]?.format &&
       advanced_notice[dayLabel]?.format !== "days" &&
@@ -489,20 +501,20 @@
           dateSlots = find?.slots || [];
         } 
         if (dateSlots?.length > 0) {
-          renderTime(dateSlots, date);
+          renderTime(dateSlots, date, dataAPI.block_dates);
         } else {
           if (
             dataAPI["available_slot"].length > 0 &&
             dataAPI["available_slot"][0]
           ) {
-            renderTime(dataAPI["every_day"].time, date);
+            renderTime(dataAPI["every_day"].time, date, dataAPI.block_dates);
           } else {
             let getDay = jQuery.datepicker
               .formatDate("DD", new Date(date))
               .toString()
               .toLowerCase();
             if (dataAPI[getDay]) {
-              renderTime(dataAPI[getDay].time, date);
+              renderTime(dataAPI[getDay].time, date, dataAPI.block_dates);
             }
           }
         }
@@ -579,6 +591,14 @@
         var dataAPI = response.data?.settings;
         var blockDates = dataAPI.block_dates;
         advanced_notice = dataAPI.advanced_notice;
+
+        if (blockDates?.length > 0) {
+          let testBlockDate = blockDates[0]
+          if (typeof testBlockDate === 'object' && testBlockDate !== null) {
+            blockDates = blockDates.filter((d) => d.times?.length == 0)
+            blockDates = blockDates.map((d) => d.date);
+          }
+        }
 
         datePicker(dataAPI, blockDates);
 
