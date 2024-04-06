@@ -25,6 +25,9 @@ import {
   useSetIndexFiltersMode,
   EmptySearchResult,
   Pagination,
+  HorizontalStack,
+  Grid,
+  VerticalStack,
 } from '@shopify/polaris';
 import { CalendarMajor, PlusMinor, DeleteMajor, MobileCancelMajor } from '@shopify/polaris-icons';
 import '../../../assets/style.scss';
@@ -36,6 +39,7 @@ import * as _ from 'lodash';
 import moment from 'moment';
 import SpecificDateSlotModal from '../../../components/SpecificDateSlotModal';
 import BlockDateModal from '../../../components/BlockDateModal';
+import CustomField from '../../../components/CustomField';
 
 export default function ProductConfiguration({ shop, authAxios }) {
   const params = useParams();
@@ -73,9 +77,13 @@ export default function ProductConfiguration({ shop, authAxios }) {
           saturday: '',
           sunday: '',
           specific_dates: [],
+          exclude_dates: [],
+          rolling_days: [
+            { days: 0, amount: 0}
+          ]
         },
         discount_amount: 0,
-        discount_choices: ['every_day'],
+        discount_choices: [],
         block_dates: [],
         reverse_block_dates: false,
         available_slot: [true],
@@ -181,12 +189,6 @@ export default function ProductConfiguration({ shop, authAxios }) {
         formik.setFieldValue('delivery.block_dates', []);
       }
     }
-    if (id === 'delivery.discount_choices') {
-      const resetDiscount = _.mapValues(formik.values.delivery.discount, (day) => {
-        return typeof day === 'string' ? '' : [];
-      });
-      formik.setFieldValue('delivery.discount', resetDiscount);
-    }
     formik.handleChange({
       target: {
         id,
@@ -217,19 +219,7 @@ export default function ProductConfiguration({ shop, authAxios }) {
   const renderDiscount = () => {
     switch (formik.values.delivery.discount_choices[0]) {
       case 'every_day':
-        return (
-          <TextField
-            type="number"
-            value={formik.values.delivery.discount.monday}
-            onChange={(e) => {
-              const updatedDiscount = _.mapValues(formik.values.delivery.discount, (day) => {
-                return typeof day === 'string' ? e : day;
-              });
-              formik.setFieldValue('delivery.discount', updatedDiscount);
-            }}
-            label="Discount amount"
-          />
-        );
+
       case 'specific_day':
         return (
           <FormLayout>
@@ -605,11 +595,43 @@ export default function ProductConfiguration({ shop, authAxios }) {
     getProductSettings(params.id);
   }, []);
 
+  const renderChildren1 = useCallback(
+    () => (
+      <TextField
+        label="Minimum Quantity"
+        labelHidden
+        onChange={handleTextFieldChange}
+        value={textFieldValue}
+        autoComplete="off"
+      />
+    ),
+    [],
+  );
+
+  const handleChangeDiscountChoices = (checked, id) => {
+    let discount_choices = formik.values.delivery.discount_choices;
+    if (checked && ! discount_choices.includes(id)) {
+      discount_choices.push(id);
+    } else {
+      let index = discount_choices.indexOf(id);
+      if (index !== -1) {
+        discount_choices.splice(index, 1);
+      }
+    }
+    handleChange(discount_choices, "delivery.discount_choices");
+  }
+
+  const handleChangeRollingDays = (index, key, value) => {
+    let rolling_days = formik.values.delivery.discount.rolling_days;
+    rolling_days[index][key] = value;
+    handleChange(rolling_days, "delivery.discount.rolling_days")
+  }
+
   return (
     loading ? <div className="spinner"><Spinner size="large" /></div> : (
       <Page title={product.title} primaryAction={{ content: "Save", onAction: handleSubmit }} backAction={{ content: "Go back", url: "/" }}>
         <Layout>
-          <Layout.Section>
+          <Layout.AnnotatedSection title="Available Hours" description="Set the available hours for this specific product">
             <LegacyCard>
               <LegacyCard.Section title="Availability">
                 <ChoiceList
@@ -776,8 +798,8 @@ export default function ProductConfiguration({ shop, authAxios }) {
                 </LegacyTabs>
               </LegacyCard.Section>
               <LegacyCard.Section title="Discounts">
-                <FormLayout>
-                  {/* <TextField type="number" value={formik.values.delivery.discount_amount} label="Discount amount" id="delivery.discount_amount" name="delivery.discount_amount" onChange={handleChange} /> */}
+                {/* <FormLayout>
+                  <TextField type="number" value={formik.values.delivery.discount_amount} label="Discount amount" id="delivery.discount_amount" name="delivery.discount_amount" onChange={handleChange} />
                   <ChoiceList
                     title="Discount type"
                     choices={[
@@ -789,12 +811,223 @@ export default function ProductConfiguration({ shop, authAxios }) {
                     id="delivery.discount_choices"
                     selected={formik.values.delivery.discount_choices}
                     onChange={handleChange}
+                    allowMultiple
                   />
                   {renderDiscount()}
+                </FormLayout> */}
+              </LegacyCard.Section>
+            </LegacyCard>
+          </Layout.AnnotatedSection>
+          <Layout.AnnotatedSection title="Discounts" description="Set the discounting rule">
+            <LegacyCard>
+              <LegacyCard.Section>
+                <FormLayout>
+                  <Checkbox id="every_day" label="Flat discount" checked={formik.values.delivery.discount_choices.includes("every_day")} onChange={handleChangeDiscountChoices} />
+                  {formik.values.delivery.discount_choices.includes("every_day") &&
+                    <TextField
+                      id="delivery.discount_amount"
+                      name="delivery.discount_amount"
+                      type="number"
+                      value={formik.values.delivery.discount_amount}
+                      onChange={handleChange}
+                      label="Flat rate"
+                    />
+                  }
+                  <Checkbox id="specific_day" label="Specific days of the week" checked={formik.values.delivery.discount_choices.includes("specific_day")} onChange={handleChangeDiscountChoices} />
+                  {formik.values.delivery.discount_choices.includes("specific_day") &&
+                    tabs.map(({ id, panelID }, index) => {
+                      return (
+                        <TextField
+                          type="number"
+                          key={id}
+                          onChange={(e) => {
+                            formik.setFieldValue(`delivery.discount.${id}`, e);
+                          }}
+                          value={formik.values.delivery.discount[id]}
+                          label={`${panelID} - Discount amount`}
+                        />
+                      );
+                    })
+                  }
+                  <Checkbox id="specific_date" label="Specific dates of the year" checked={formik.values.delivery.discount_choices.includes("specific_date")} onChange={handleChangeDiscountChoices} />
+                  {formik.values.delivery.discount_choices.includes("specific_date") &&
+                  <div>
+                    <Button
+                      onClick={() => {
+                        setShowModalDiscount(true);
+                      }}
+                    >
+                      Add discount
+                    </Button>
+                    {formik.values.delivery.discount.specific_dates?.length > 0 && (
+                      <div style={{ marginTop: 10 }}>
+                        <ResourceList
+                          selectable={false}
+                          itemCount={formik.values.delivery.discount.specific_dates?.length}
+                          items={formik.values.delivery.discount.specific_dates.sort(
+                            (a, b) => new Date(a.date) - new Date(b.date)
+                          )}
+                          renderItem={(item, id) => {
+                            return (
+                              <ResourceItem id={id} name={item}>
+                                <div style={{ padding: '10px 0' }}>
+                                  <LegacyStack distribution="equalSpacing">
+                                    <Text variant="headingMd">
+                                      {moment(item.date, 'YYYY-MM-DD').format('dddd, MMMM DD, YYYY')}{' '}
+                                      {item.amount && `- ${item.amount}%`}
+                                    </Text>
+                                    <Button
+                                      onClick={() => {
+                                        formik.setFieldValue(
+                                          'delivery.discount.specific_dates',
+                                          formik.values.delivery.discount.specific_dates.filter(
+                                            (discount) => discount.date !== item.date
+                                          )
+                                        );
+                                      }}
+                                      plain
+                                      monochrome
+                                    >
+                                      <Icon source={DeleteMajor} />
+                                    </Button>
+                                  </LegacyStack>
+                                </div>
+                              </ResourceItem>
+                            );
+                          }}
+                        />
+                      </div>
+                    )}
+                    </div>
+                  }
+                  <Checkbox id="rolling_days" label="Rolling days" checked={formik.values.delivery.discount_choices.includes("rolling_days")} onChange={handleChangeDiscountChoices} />
+                  {formik.values.delivery.discount_choices.includes("rolling_days") && formik.values.delivery.discount.rolling_days.length > 0 &&
+                    formik.values.delivery.discount.rolling_days.map(({ days, amount }, index) => {
+                      let _index = index;
+                      return (
+                        <VerticalStack gap="05" inlineAlign="start">
+                          <Grid>
+                            <Grid.Cell columnSpan={{ xs: 6, sm: 3, md: 6, lg: 6, xl: 6 }}>
+                              <TextField label="For the next X days" type="number" value={days > 0 ? days : ""} onChange={(value) => handleChangeRollingDays(index, "days", value)} />
+                            </Grid.Cell>
+                            <Grid.Cell columnSpan={{ xs: 6, sm: 3, md: 6, lg: 6, xl: 6 }}>
+                            <TextField label="What is the %" type="number" value={amount > 0 ? amount : ""} onChange={(value) => handleChangeRollingDays(index, "amount", value)} />
+                            </Grid.Cell>
+                          </Grid>
+                          <Button 
+                            plain
+                            destructive
+                            onClick={() => {
+                              formik.setFieldValue(
+                                'delivery.discount.rolling_days',
+                                formik.values.delivery.discount.rolling_days.filter((_, index) => index !== Number(_index))
+                              );
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </VerticalStack>
+                      )
+                    })
+                  }
+                  {formik.values.delivery.discount_choices.includes("rolling_days") && 
+                    <Button onClick={() => {
+                      let rolling_days = formik.values.delivery.discount.rolling_days
+                      rolling_days.push({ days: 0, amount: 0 })
+                      handleChange(rolling_days, "delivery.discount.rolling_days")
+                    }}>Add</Button>
+                  }
+                  <Checkbox id="exclude_date" label="Disable discount on selected dates" checked={formik.values.delivery.discount_choices.includes("exclude_date")} onChange={handleChangeDiscountChoices} />
+                  {formik.values.delivery.discount_choices.includes("exclude_date") &&
+                    <>
+                      <Popover
+                        active={popoverActive}
+                        activator={
+                          <TextField
+                            value={dateValue}
+                            onChange={onDateChange}
+                            onFocus={() => setPopoverActive(true)}
+                            placeholder="Select a date ..."
+                            prefix={<Icon source={CalendarMajor} />}
+                            connectedRight={
+                              <Button
+                                onClick={() => {
+                                  if (dateValue) {
+                                    let currentDate = new Date(selectedDates.start);
+                                    while (currentDate <= new Date(selectedDates.end)) {
+                                      let date = moment(currentDate).format('YYYY-MM-DD');
+                                      let exclude_dates = formik.values.delivery.discount.exclude_dates.push(date);
+                                      handleChange("delivery.discount.exclude_dates", exclude_dates);
+                                      currentDate.setDate(currentDate.getDate() + 1);
+                                    }
+                                    setPopoverActive(false);
+                                    setSelectedDates({
+                                      start: new Date('Wed Feb 07 2018 00:00:00 GMT-0500 (EST)'),
+                                      end: new Date('Sat Feb 10 2018 00:00:00 GMT-0500 (EST)'),
+                                    });
+                                    setDateValue('');
+                                  } else {
+                                    setPopoverActive(true);
+                                  }
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                  }}
+                                >
+                                  <Icon source={PlusMinor} />
+                                  <p>Add dates</p>
+                                </div>
+                              </Button>
+                            }
+                          />
+                        }
+                        onClose={() => setPopoverActive(false)}
+                      >
+                        {renderDatePicker(selectedDates, setSelectedDates, setDateValue, setPopoverActive)}
+                      </Popover>
+                      {formik.values.delivery.discount.exclude_dates.length > 0 && (
+                        <div style={{ marginTop: 10 }}>
+                          <ResourceList
+                            selectable={false}
+                            itemCount={formik.values.delivery.discount.exclude_dates.length}
+                            items={formik.values.delivery.discount.exclude_dates}
+                            renderItem={(item, id) => {
+                              return (
+                                <ResourceItem id={id} name={item}>
+                                  <div style={{ padding: '10px 0' }}>
+                                    <LegacyStack distribution="equalSpacing">
+                                      <Text variant="headingMd">{moment(item, 'YYYY-MM-DD').format('dddd, MMMM DD, YYYY')}</Text>
+                                      <Button
+                                        onClick={() => {
+                                          formik.setFieldValue(
+                                            'delivery.discount.exclude_dates',
+                                            formik.values.delivery.discount.exclude_dates.filter((_, index) => index !== Number(id))
+                                          );
+                                        }}
+                                        plain
+                                        monochrome
+                                      >
+                                        <Icon source={DeleteMajor} />
+                                      </Button>
+                                    </LegacyStack>
+                                  </div>
+                                </ResourceItem>
+                              );
+                            }}
+                          />
+                        </div>
+                      )}
+                    </>
+                  }
                 </FormLayout>
               </LegacyCard.Section>
             </LegacyCard>
-          </Layout.Section>
+          </Layout.AnnotatedSection>
           <Modal
             fullScreen
             onClose={() => {

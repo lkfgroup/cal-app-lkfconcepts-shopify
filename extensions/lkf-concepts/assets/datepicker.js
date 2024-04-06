@@ -210,6 +210,31 @@
 
     return formatString.replace(placeholderRegex, value);
   }
+  function getDateDiscount(date, day, { discount, discount_choices, discount_amount }) {
+    if (discount_choices?.includes("exclude_date") && discount?.exclude_dates?.includes(date)) {
+      return 0;
+    }
+    if (discount_choices?.includes("rolling_days")) {
+      let differentDays = Math.round((new Date(date) - new Date()) / (1000 * 60 * 60 * 24));
+      let rollingDay = discount?.rolling_days?.find((r) => r.days == differentDays);
+      if (rollingDay && Number(rollingDay?.amount) > 0) {
+        return rollingDay?.amount;
+      }
+    }
+    if (discount_choices?.includes("specific_date")) {
+      let specific_date = discount?.specific_dates?.find((d) => d.date == date);
+      if (specific_date && Number(specific_date?.amount) > 0) {
+        return specific_date?.amount;
+      }
+    }
+    if (discount_choices?.includes("specific_day") && Number(discount[day]) > 0) {
+      return discount[day];
+    }
+    if (discount_choices?.includes("every_day") && Number(discount_amount) > 0) {
+      return discount_amount
+    }
+    return 0;
+  }
   function appendPrice(dataProduct, month, year) {
     let discount = dataProduct.discount;
     let discount_choices = dataProduct.discount_choices;
@@ -222,28 +247,13 @@
           const elemDay = $(elem).find(".ui-state-default");
           let date, day;
           let price = priceOld;
-          let discountAmount = dataProduct?.discount_amount ? dataProduct?.discount_amount : 0;
+          let discountAmount;
           if (elemDay.length > 0) {
             elemDay.each(function (ind2, elem2) {
               date = getDate($(elem2).text(), month, year).date;
               day = getDate($(elem2).text(), month, year).dayLabel;
-              if (
-                discount_choices.length > 0 &&
-                discount_choices[0] !== "specific_date"
-              ) {
-                if (discount[day]) {
-                  price = (priceOld * (100 - parseInt(discount[day]))) / 100;
-                  discountAmount = parseInt(discount[day]);
-                }
-              } else {
-                const specificDate = discount.specific_dates.find(
-                  (item) => item.date == date
-                );
-                if (specificDate?.date && specificDate?.amount) {
-                  // price = (priceOld * (100 - parseInt(specificDate.amount))) / 100;
-                  discountAmount = parseInt(specificDate.amount);
-                }
-              }
+              discountAmount = getDateDiscount(date, day, dataProduct)
+              price = (priceOld * (100 - parseInt(discountAmount))) / 100;
             });
           }
           price = formatMoney(price.toString(), moneyFormat);
