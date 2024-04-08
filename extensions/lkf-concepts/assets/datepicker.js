@@ -244,6 +244,14 @@
       $(document)
         .find(".ui-datepicker-calendar td")
         .each(function (idx, elem) {
+          if ($(elem).attr('class').split(/\s+/).includes("ui-datepicker-unselectable")) {
+            if ($(this).find("#amount_lkf").length == 0) {
+              $(this).append(
+                `<span id="amount_lkf" style='display: block;color: rgba(0,0,0,.5);font-size: 16px;font-style: italic;'>&nbsp;</span>`
+              );
+            }
+            return;
+          }
           const elemDay = $(elem).find(".ui-state-default");
           let date, day;
           let price = priceOld;
