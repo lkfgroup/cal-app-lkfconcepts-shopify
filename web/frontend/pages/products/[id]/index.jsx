@@ -797,25 +797,6 @@ export default function ProductConfiguration({ shop, authAxios }) {
                   </LegacyCard.Section>
                 </LegacyTabs>
               </LegacyCard.Section>
-              <LegacyCard.Section title="Discounts">
-                {/* <FormLayout>
-                  <TextField type="number" value={formik.values.delivery.discount_amount} label="Discount amount" id="delivery.discount_amount" name="delivery.discount_amount" onChange={handleChange} />
-                  <ChoiceList
-                    title="Discount type"
-                    choices={[
-                      { label: 'Every day of the week', value: 'every_day' },
-                      { label: 'Specific days of the week', value: 'specific_day' },
-                      { label: 'Specific dates of the year', value: 'specific_date' },
-                    ]}
-                    name="delivery.discount_choices"
-                    id="delivery.discount_choices"
-                    selected={formik.values.delivery.discount_choices}
-                    onChange={handleChange}
-                    allowMultiple
-                  />
-                  {renderDiscount()}
-                </FormLayout> */}
-              </LegacyCard.Section>
             </LegacyCard>
           </Layout.AnnotatedSection>
           <Layout.AnnotatedSection title="Discounts" description="Set the discounting rule">
