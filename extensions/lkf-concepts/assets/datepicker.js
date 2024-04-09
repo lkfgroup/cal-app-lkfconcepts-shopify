@@ -138,11 +138,10 @@
       for (let i = 0; i < time.length; i++) {
         const itemTime = time[i];
         const minutes = convertTimeToMinutes(itemTime);
-
-        if (dateNow == dateYYMMDD && minutes > minutesNowHHM) {
-          addElement += `<option value="${itemTime}">${itemTime}</option>`;
-        } else {
+        if (dateNow == dateYYMMDD && minutes < minutesNowHHM) {
           addElement += `<option value="${itemTime}" disabled>${itemTime}</option>`;
+        } else {
+          addElement += `<option value="${itemTime}">${itemTime}</option>`;
         }
       }
     }
@@ -478,6 +477,7 @@
     $("#lkf-datepicker-container .datepicker").datepicker({
       inline: true,
       altFormat: "M d",
+      dateFormat: "yy-mm-dd",
       changeMonth: true,
       minDate: startDate,
       beforeShow: function (elem, dp) {
@@ -614,6 +614,21 @@
         }
 
         datePicker(dataAPI, blockDates);
+
+        var queryString = window.location.search;
+        var urlParams = new URLSearchParams(queryString);
+
+        var date = urlParams.get("date");
+        var time = urlParams.get("time");
+
+        if (date) {
+          $("#lkf-datepicker-container .datepicker").datepicker("setDate", date);
+          $(".ui-datepicker-current-day").click();
+        }
+
+        if (time && $(`#lkf-datepicker-container .arrival_time option[value="${time}"]`)?.length > 0) {
+          $(`#lkf-datepicker-container .arrival_time option[value="${time}"]`).attr('selected','selected');
+        }
 
         enableInputs();
       }
