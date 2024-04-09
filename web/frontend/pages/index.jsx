@@ -72,16 +72,27 @@ export default function Index({ shop, authAxios }) {
     await fetch({ before, after: "" });
   }
 
-  const fetch = async (data) => {
+  const [savedSearches, setSavedSearches] = useState([]);
+
+  const fetch = async (data = {}, fetchSavedSearches = false) => {
     setIsSearching(true);
     const list = await authAxios.post("/api/products", {...formik.values, ...data});
+    if (fetchSavedSearches) {
+      const searches = await authAxios.post("/api/save_search");
+      setSavedSearches(searches?.data?.saved_searches);
+      let newItemStrings = searches?.data?.saved_searches?.map((s) => {
+        return s.name
+      });
+      newItemStrings = ["All"].concat(newItemStrings)
+      setItemStrings(newItemStrings);
+    }
     setIsSearching(false);
     setProducts(list.data.data);
     setPageInfo(list.data.pageInfo);
   };
 
   useEffect(() => {
-    fetch();
+    fetch({}, true);
   }, []);
 
   const resourceName = {
@@ -142,13 +153,68 @@ export default function Index({ shop, authAxios }) {
 
   const { mode, setMode } = useSetIndexFiltersMode();
 
+  const renameView = async (name, index) => {
+    const newItemsStrings = tabs.map((item, idx) => {
+      if (idx === index) {
+        return name;
+      }
+      return item.content;
+    });
+    const search = savedSearches[index - 1];
+    await updateSearch(search?._id, "UPDATE", name, search?.filters);
+    setItemStrings(newItemsStrings);
+  }
+
+  const deleteView = async (index) => {
+    const search = savedSearches[index - 1];
+    await updateSearch(search?._id, "DELETE", "", {});
+    const newItemStrings = [...itemStrings];
+    newItemStrings.splice(index, 1);
+    setItemStrings(newItemStrings);
+    setSelected(0);
+  };
+
+  const duplicateView = async (name, index) => {
+    const search = savedSearches[index - 1];
+    const response = await updateSearch("", "CREATE", name, search?.filters);
+    const newSearch = response?.data?.result;
+    setSavedSearches([...savedSearches, newSearch])
+    setItemStrings([...itemStrings, name]);
+    setSelected(itemStrings.length);
+    await sleep(1);
+    return true;
+  };
+
   const tabs = itemStrings.map((item, index) => ({
     content: item,
     index,
     onAction: () => {},
     id: `${item}-${index}`,
     isLocked: index === 0,
-    actions: null,
+    actions: index === 0 ? [] : [
+      {
+        type: 'rename',
+        onAction: () => {},
+        onPrimaryAction: async (value) => {
+          await renameView(value, index);
+          return true;
+        },
+      },
+      {
+        type: 'duplicate',
+        onPrimaryAction: async (value) => {
+          await duplicateView(value, index);
+          return true;
+        },
+      },
+      {
+        type: 'delete',
+        onPrimaryAction: async () => {
+          await deleteView(index);
+          return true;
+        },
+      },
+    ]
   }));
 
   const filters = [
@@ -227,20 +293,36 @@ export default function Index({ shop, authAxios }) {
     }
   ];
 
-  const onHandleSave = async () => {
-    await sleep(1);
+  const updateSearch = async (_id, action, name, filters) => {
+    return await authAxios.post("/api/update_save_search", {
+      _id, action, name, filters
+    })
+  }
+
+  const onHandleSave = async (value) => {
+    await updateSearch("", "UPDATE", value, formik.values);
     return true;
   };
   
   const onCreateNewView = async (value) => {
-    await authAxios.post("/api/add_saved_search", {
-      ...formik.values,
-      name: value
-    })
+    let response = await updateSearch("", "CREATE", value, formik.values);
+    let newSearch = response?.data?.result;
+    setSavedSearches([...savedSearches, newSearch])
     setItemStrings([...itemStrings, value]);
     setSelected(itemStrings.length);
     return true;
   };
+
+  const onSelect = async (index) => {
+    if (index > 0) {
+      let filters = savedSearches[index - 1].filters;
+      formik.setValues(filters)
+    } else {
+      formik.resetForm();
+    }
+    setSelected(index);
+    return true;
+  }
 
   return (
     <Page title="Products">
@@ -259,23 +341,23 @@ export default function Index({ shop, authAxios }) {
               }}
               tabs={tabs}
               selected={selected}
-              onSelect={setSelected}
+              onSelect={onSelect}
               canCreateNewView={false}
               filters={filters}
               mode={mode}
               setMode={setMode}
               loading={isSearching}
-              // primaryAction={selected === 0 ? {
-              //   type: 'save-as',
-              //   onAction: onCreateNewView,
-              //   disabled: false,
-              //   loading: false,
-              // } : {
-              //   type: 'save',
-              //   onAction: onHandleSave,
-              //   disabled: false,
-              //   loading: false,
-              // }}
+              primaryAction={selected === 0 ? {
+                type: 'save-as',
+                onAction: onCreateNewView,
+                disabled: false,
+                loading: false,
+              } : {
+                type: 'save',
+                onAction: onHandleSave,
+                disabled: false,
+                loading: false,
+              }}
             />
 
             <IndexTable

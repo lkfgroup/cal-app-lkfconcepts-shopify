@@ -21,6 +21,7 @@ import moment from "moment";
 import processOrderCreatedWebhook from "./order-webkhook.js";
 import settingModel from "./models/setting.model.js";
 import webhookModel from "./models/webhook.model.js";
+import searchModel from "./models/search.model.js";
 
 dotenv.config();
 
@@ -670,6 +671,69 @@ app.post('/api/fulfill_draft_order', async (_req, res) => {
     });
   }
 })
+
+app.post('/api/save_search', async (_req, res) => {
+  try {
+    let shop = _req.headers["shop"];
+
+    let saved_searches = await searchModel.find({ shop });
+
+    res.status(200).send({
+      success: true,
+      saved_searches
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(400).send({
+      success: false,
+    })
+  }
+})
+
+app.post('/api/update_save_search', async (_req, res) => {
+  try {
+    let shop = _req.headers["shop"];
+
+    let { _id, action, name, filters } = _req.body;
+
+    let result;
+
+    if (action == "DELETE") {
+      result = await searchModel.deleteOne({
+        _id: new mongoose.Types.ObjectId(_id),
+      });
+    } else if (action == "CREATE") {
+      result = await searchModel.create({
+        shop,
+        name,
+        filters
+      })
+    } else {
+      result = await searchModel.findOneAndUpdate(
+        {
+          _id: new mongoose.Types.ObjectId(_id),
+        },
+        {
+          shop,
+          name,
+          filters
+        },
+        { new: true, upsert: true }
+      )
+    }
+
+    res.status(200).send({
+      success: true,
+      result
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(400).send({
+      success: false,
+    })
+  }
+})
+
 app.use(shopify.cspHeaders());
 app.use(serveStatic(STATIC_PATH, { index: false }));
 app.use("/*", shopify.ensureInstalledOnShop(), async (_req, res, _next) => {
