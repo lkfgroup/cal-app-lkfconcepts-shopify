@@ -114,7 +114,7 @@
       .toLowerCase();
     const dateNow = getNowYYMMDD();
     const timeNowHHMM = getNowHHMM();
-    const minutesNowHHM = convertTimeToMinutes(timeNowHHMM);
+    const minutesNowHHM = convertTimeToMinutes(timeNowHHMM) + 30;
     let dateYYMMDD = getNowYYMMDD(date);
     time = time.filter(t => checkBlockDateTimes(t, dateYYMMDD, blockDates));
     if (
@@ -128,12 +128,7 @@
       for (let i = 0; i < time.length; i++) {
         const itemTime = time[i];
         const minutes = convertTimeToMinutes(itemTime);
-        console.log("minutes", minutes, minutesNowHHM);
-        if (
-          (!disableDate(dateYYMMDD, _preparationTime.date) &&
-            minutes > minutesNowHHM) ||
-          minutes > _preparationTime.value
-        ) {
+        if (minutes > minutesNowHHM && minutes > _preparationTime.value) {
           addElement += `<option value="${itemTime}">${itemTime}</option>`;
         } else {
           addElement += `<option value="${itemTime}" disabled>${itemTime}</option>`;
@@ -144,10 +139,10 @@
         const itemTime = time[i];
         const minutes = convertTimeToMinutes(itemTime);
 
-        if (dateNow == dateYYMMDD && minutes < minutesNowHHM) {
-          addElement += `<option value="${itemTime}" disabled>${itemTime}</option>`;
-        } else {
+        if (dateNow == dateYYMMDD && minutes > minutesNowHHM) {
           addElement += `<option value="${itemTime}">${itemTime}</option>`;
+        } else {
+          addElement += `<option value="${itemTime}" disabled>${itemTime}</option>`;
         }
       }
     }
