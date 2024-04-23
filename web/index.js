@@ -23,6 +23,9 @@ import settingModel from "./models/setting.model.js";
 import webhookModel from "./models/webhook.model.js";
 import searchModel from "./models/search.model.js";
 
+import cron from "node-cron";
+import deleteBlockDates from "./cron-jobs.js";
+
 dotenv.config();
 
 mongoose.connect(`${process.env.MONGODB_HOST}/${process.env.MONGODB_DB}`, {
@@ -33,6 +36,10 @@ mongoose.connect(`${process.env.MONGODB_HOST}/${process.env.MONGODB_DB}`, {
     if (process.env.NODE_ENV !== "test") {
       console.log("Connected to %s", `${process.env.MONGODB_HOST}/${process.env.MONGODB_DB}`);
     }
+
+    cron.schedule("0 0 0 * * *", () => {
+      deleteBlockDates();
+    });
   });
 
 const PORT = parseInt(
