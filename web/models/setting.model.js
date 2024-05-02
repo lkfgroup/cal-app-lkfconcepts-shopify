@@ -6,6 +6,11 @@ const settingSchema = mongoose.Schema(
             type: "String",
             required: true,
         },
+        type: {
+            type: "String",
+            required: true,
+            default: "product",
+        },
         product_id: {
             type: 'String',
             required: true

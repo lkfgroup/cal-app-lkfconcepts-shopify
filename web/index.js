@@ -133,29 +133,112 @@ app.post('/api/check_availability', cors(), bodyParser.json(),
   })
 // If you are adding routes outside of the /api path, remember to
 // also add a proxy rule for them in web/frontend/vite.config.js
-app.post('/api/store_front', cors(), bodyParser.json(),
-  bodyParser.urlencoded({ extended: true }), async (_req, res) => {
-    try {
+app.post('/api/store_front', cors(), bodyParser.json(), bodyParser.urlencoded({ extended: true }), async (_req, res) => {
+  try {
+    let { product_id, shop } = _req.body
 
-      const { product_id, shop } = _req.body
+    let result = await settingModel.findOne({ product_id, shop }).lean();
 
-      const result = await settingModel.findOne({ product_id, shop })
-      res.status(200).send({
-        success: true,
-        data: result || {}
-      })
-    } catch (error) {
-      console.log(error),
-        res.status(400).send({
-          success: false
-        })
+    if (_req?.body?.vendor) {
+      let location = await settingModel.findOne({ type: "location", shop, "settings.vendor": _req?.body?.vendor}).lean();
+      result = { ...result, location };
     }
-  })
+
+    res.status(200).send({
+      success: true,
+      data: result || {}
+    })
+  } catch (error) {
+    res.status(400).send({
+      success: false
+    })
+  }
+})
 app.use("/api/*", shopify.validateAuthenticatedSession());
 
 app.use(express.json());
 
 // API endpoints here
+
+app.post('/api/get-locations', async (_req, res) => {
+  let shop = _req.headers["shop"];
+  try {
+    const result = await settingModel.find({
+      type: "location",
+      shop
+    }).sort({ createdAt: -1 }).lean();
+    return res.status(200).send({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(400).send({
+      success: false,
+    });
+  }
+})
+
+app.post('/api/get-location', async (_req, res) => {
+  let shop = _req.headers["shop"];
+  try {
+    const result = await settingModel.findOne(
+      {
+        _id:  new mongoose.Types.ObjectId(_req.body.id),
+        shop
+      }
+    )
+    res.status(200).send({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(400).send({
+      success: false,
+    });
+  }
+})
+
+app.post('/api/edit-location', async (_req, res) => {
+  let shop = _req.headers["shop"];
+  try {
+    if (_req.body.id == "new") {
+      let result = await settingModel.create({
+        settings: _req.body.settings,
+        shop,
+        product_id: 1,
+        type: "location"
+      })
+      return res.status(200).send({
+        success: true,
+        data: result
+      });
+    }
+    let result = await settingModel.findOneAndUpdate(
+      {
+        _id:  new mongoose.Types.ObjectId(_req.body.id),
+        shop
+      },
+      {
+        settings: _req.body.settings,
+        shop,
+        product_id: 1,
+        type: "location"
+      },
+      { new: true, upsert: true }
+    )
+    return res.status(200).send({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(400).send({
+      success: false,
+    });
+  }
+})
 
 app.post('/api/get_data', async (_req, res) => {
   try {
