@@ -98,21 +98,34 @@ app.post("/api/webhook-test", express.json(), async (_req, res) => {
 app.post('/api/check_availability', cors(), bodyParser.json(),
   bodyParser.urlencoded({ extended: true }), async (_req, res) => {
     try {
-      const { product_id, time = '11:00', date, cover, restaurant_id } = _req.body
+      let { product_id, time = '11:00', date, cover, restaurant_id } = _req.body
+      if (restaurant_id == "HK_HK_R_LkfCiaoChow") {
+        restaurant_id = "HK_HK_R_LkfBACI"
+      }
+      let products = {
+        "HK_HK_R_LkfFumi": "MainDining",
+        "HK_HK_R_LkfAriaItalian": "MainDining",
+        "HK_HK_R_LkfBACI": "Main Dining",
+        "HK_HK_R_LkfKyotojoe": "MainDining",
+        "HK_HK_R_LkfPorterhouse": "MainDining",
+        "HK_HK_R_LkfTokiojoe": "Main Dining Area",
+      }
       const availability = await _axios.post(`${process.env.BASE_URL}/booking/availability`, {
         date,
         restaurant: restaurant_id,
         source: process.env.SOURCE,
         credential: process.env.CREDENTIAL,
-        cover
+        cover,
+        product: products.hasOwnProperty(restaurant_id) ? products[restaurant_id] : "MainDining"
       })
       console.log({
         date,
         restaurant: restaurant_id,
         source: process.env.SOURCE,
         credential: process.env.CREDENTIAL,
-        cover
-      }, availability)
+        cover,
+        product: products.hasOwnProperty(restaurant_id) ? products[restaurant_id] : "MainDining"
+      })
       const hoursDiff = moment(time, "HH:mm").subtract(9, 'hours');
       const minutesDiff = moment(time, "HH:mm").minutes();
       const halfHourIntervals = moment(hoursDiff).hours() * 2 + Math.floor(minutesDiff / 30);
