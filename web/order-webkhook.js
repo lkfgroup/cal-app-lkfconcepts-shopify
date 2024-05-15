@@ -18,8 +18,20 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
       },
     });
 
-    let date = payload.line_items[0].properties.find(prop => prop.name === 'Booking date')?.value || ''
-    let time = payload.line_items[0].properties.find(prop => prop.name === 'Booking time')?.value || ''
+    let date;
+    let time;
+    let vendor;
+
+    let line_items = payload.line_items
+    for (let i = 0; i < line_items.length; i++) {
+      let line_item = line_items[i];
+      date = line_item.properties.find(prop => prop.name === 'Booking date')?.value || '';
+      time = line_item.properties.find(prop => prop.name === 'Booking time')?.value || '';
+      vendor = line_item.vendor;
+      if (date && time && vendor) {
+        break;
+      }
+    }
     let financial_status = payload?.financial_status || ''
     if (date && time && financial_status == 'paid') {
       let dateFormat = moment(date);
@@ -41,22 +53,30 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
           product_type,
         }
       }))
-  
-      let productName = products.filter((p) => p.product_type == "Experience").map((p) => {
+
+      let quantity = 0
+          
+      products.filter((p) => p.product_type == "Experience").forEach((p) => {
+        quantity += Number(p.quantity);
+      })
+
+      products = products.filter((p) => p.product_type != "Gift Card");
+
+      let productName = products.map((p) => {
         return `${p.name} x ${p.quantity}`
       })
   
       let deposit = 0;
   
       products.forEach((p) => {
-        deposit += (Number(p.price) * Number(p.quantity)) - Number(p.total_discount);
+        deposit += (parseFloat(p.price) * Number(p.quantity)) - parseFloat(p.total_discount);
       })
   
-      const request = `Product Name: ${productName.join(", ")}, Order ID: LKFC${payload.order_number}, Deposit: HK$${deposit}, Special Request: ${payload?.note ? payload?.note : ""}`
+      const request = `Product Name: ${productName.join(", ")}, Order ID: LKFC${payload.order_number}, Deposit: HK$${deposit.toFixed(2)}, Special Request: ${payload?.note ? payload?.note : ""}`
 
       const data = {
-        restaurant: getRestaurant(payload.line_items[0].vendor),
-        cover: payload.line_items[0].quantity,
+        restaurant: getRestaurant(vendor),
+        cover: quantity,
         date: dateFormat.format('YYYY-MM-DD'),
         time: time,
         source: process.env.SOURCE,
@@ -65,6 +85,7 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
         firstname: payload?.customer?.first_name ? payload?.customer?.first_name : "",
         lastname: payload?.customer?.last_name ? payload?.customer?.last_name : "",
         phone: payload?.customer?.phone ? payload?.customer?.phone : "",
+        notify: "yes",
         request: request
       }
       console.log(data);
@@ -84,12 +105,12 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
 const getRestaurant = (vendor) => {
   const restaurantList = process.env.RESTAURANT_ID.split(',')
   if (vendor && vendor.toLowerCase() === 'baci') {
-    return "HK_HK_R_LkfCiaoChow"
+    return "HK_HK_R_LkfBACI"
   }
   for (let item of restaurantList) {
     const [key, value] = item.split('HK_HK_R_Lkf')
 
-    if (vendor && value.toLowerCase().includes(vendor.replace(" ", "").toLowerCase())) {
+    if (vendor && value && value.toLowerCase().includes(vendor.replace(" ", "").toLowerCase())) {
       return item
     }
 
