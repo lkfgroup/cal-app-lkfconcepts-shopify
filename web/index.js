@@ -137,7 +137,13 @@ app.post('/api/store_front', cors(), bodyParser.json(), bodyParser.urlencoded({ 
   try {
     let { product_id, shop } = _req.body
 
-    let result = await settingModel.findOne({ product_id, shop }).lean();
+    let result;
+
+    if (_.isInteger(product_id)) {
+      result = await settingModel.findOne({ product_id, shop }).lean();
+    } else {
+      result = await settingModel.findOne({ sku: product_id, shop }).lean();
+    }
 
     if (_req?.body?.vendor) {
       let location = await settingModel.findOne({ type: "location", shop, "settings.vendor": _req?.body?.vendor}).lean();
@@ -243,15 +249,38 @@ app.post('/api/edit-location', async (_req, res) => {
 app.post('/api/get_data', async (_req, res) => {
   try {
     const { product_id, shop } = _req.body
-    const result = await settingModel.findOne({ product_id, shop }).lean();
     const shopData = await Shop.findOne({ shop });
-    const product = await shopify.api.rest.Product.find({
-      session: {
-        shop: shopData.shop,
-        accessToken: shopData.token
-      },
-      id: product_id,
-    });
+    const session = {
+      shop: shopData.shop,
+      accessToken: shopData.token
+    };
+
+    let result;
+    let product;
+    
+    if (_.isInteger(product_id)) {
+      result = await settingModel.findOne({ product_id, shop }).lean();
+      product = await shopify.api.rest.Product.find({
+        session,
+        id: product_id,
+      });
+    } else {
+      result = await settingModel.findOne({ sku: product_id, shop }).lean();
+      product = await new shopify.api.clients.Graphql({ session }).query({
+        data: `query {
+          products(first: 1, query: "tag='SKU:${product_id}'") {
+            edges {
+              node {
+                id
+                title
+              }
+            }
+          }
+        }`,
+      })
+      product = _.get(product, "body.data.products.edges[0].node");
+    }
+    
     const data = {
       ...result,
       product: product || {}
@@ -351,17 +380,19 @@ app.post('/api/fulfill_order', async (_req, res) => {
   }
 })
 app.post('/api/edit-settings', async (_req, res) => {
-  let shop = _req.headers["shop"];
   try {
-    const result = await settingModel.findOneAndUpdate({
-      product_id: _req.body.product_id,
-      shop
-    },
-      {
-        settings: _req.body.delivery
-      },
-      { new: true, upsert: true }
-    )
+    const shop = _req.headers["shop"];
+
+    const { product_id, delivery } = _req.body;
+
+    let result;
+
+    if (_.isInteger(product_id)) {
+      result = await settingModel.findOneAndUpdate({ product_id, shop }, { settings: delivery }, { new: true, upsert: true })
+    } else {
+      result = await settingModel.findOneAndUpdate({ sku: product_id, shop }, { settings: delivery }, { new: true, upsert: true })
+    }
+
     res.status(200).send({
       success: true,
       data: result
@@ -432,6 +463,7 @@ app.post('/api/products', async (_req, res) => {
               featuredImage {
                 url
               }
+              tags
             }
           }
           pageInfo {

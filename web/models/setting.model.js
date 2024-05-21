@@ -15,6 +15,11 @@ const settingSchema = mongoose.Schema(
             type: 'String',
             required: true
         },
+        sku: {
+            type: 'String',
+            required: true,
+            default: ''
+        },
         settings: {
             type: "Object"
         }

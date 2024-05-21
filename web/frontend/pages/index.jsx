@@ -106,6 +106,11 @@ export default function Index({ shop, authAxios }) {
 
   const { selectedResources, allResourcesSelected, handleSelectionChange } = useIndexResourceState(products);
 
+  const findSku = (tags = []) => {
+    let tag = tags.find((tag) => tag.includes("SKU:"));
+    return tag ? tag?.replace("SKU:", "") : "";
+  }
+
   const rowMarkup = products?.map(({ node }, index) => (
     <IndexTable.Row id={node.id} key={node.id} selected={selectedResources.includes(node.id)} position={index}>
       <IndexTable.Cell>{node.title}</IndexTable.Cell>
@@ -113,7 +118,8 @@ export default function Index({ shop, authAxios }) {
         <Button
           size="slim"
           onClick={() => {
-            navigate(`/products/${parseId(node.id)}`)
+            let sku = findSku(node.tags);
+            navigate(`/products/${sku ? sku : parseId(node.id)}`)
           }}
         >
           Configure
