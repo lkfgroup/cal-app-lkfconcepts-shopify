@@ -140,13 +140,13 @@ app.post('/api/store_front', cors(), bodyParser.json(), bodyParser.urlencoded({ 
     let result;
 
     if (_.isInteger(product_id)) {
-      result = await settingModel.findOne({ product_id, shop }).lean();
+      result = await settingModel.findOne({ product_id }).lean();
     } else {
-      result = await settingModel.findOne({ sku: product_id, shop }).lean();
+      result = await settingModel.findOne({ sku: product_id }).lean();
     }
 
     if (_req?.body?.vendor) {
-      let location = await settingModel.findOne({ type: "location", shop, "settings.vendor": _req?.body?.vendor}).lean();
+      let location = await settingModel.findOne({ type: "location", "settings.vendor": _req?.body?.vendor}).lean();
       result = { ...result, location };
     }
 
@@ -259,13 +259,13 @@ app.post('/api/get_data', async (_req, res) => {
     let product;
     
     if (_.isInteger(product_id)) {
-      result = await settingModel.findOne({ product_id, shop }).lean();
+      result = await settingModel.findOne({ product_id }).lean();
       product = await shopify.api.rest.Product.find({
         session,
         id: product_id,
       });
     } else {
-      result = await settingModel.findOne({ sku: product_id, shop }).lean();
+      result = await settingModel.findOne({ sku: product_id }).lean();
       product = await new shopify.api.clients.Graphql({ session }).query({
         data: `query {
           products(first: 1, query: "tag='SKU:${product_id}'") {
@@ -388,9 +388,9 @@ app.post('/api/edit-settings', async (_req, res) => {
     let result;
 
     if (_.isInteger(product_id)) {
-      result = await settingModel.findOneAndUpdate({ product_id, shop }, { settings: delivery }, { new: true, upsert: true })
+      result = await settingModel.findOneAndUpdate({ product_id }, { settings: delivery }, { new: true, upsert: true })
     } else {
-      result = await settingModel.findOneAndUpdate({ sku: product_id, shop }, { settings: delivery }, { new: true, upsert: true })
+      result = await settingModel.findOneAndUpdate({ sku: product_id }, { settings: delivery }, { new: true, upsert: true })
     }
 
     res.status(200).send({
