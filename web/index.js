@@ -103,29 +103,175 @@ app.post("/api/webhook-test", express.json(), async (_req, res) => {
   }
 });
 
+const checkBlockDateTimes = (time, date, blockDates) => {
+  let blockDate = blockDates.find(d => d.date == date);
+  if (!blockDate) {
+    return true;
+  }
+  let times = blockDate.times;
+  if (times.length > 0 && !times.includes(time)) {
+    return true;
+  }
+  return false;
+}
+
+const preparationTime = (advanced_notice, format) => {
+  const dayLabel = moment().format("dddd").toLowerCase();
+
+  const date = new Date();
+
+  if (format == "days") {
+    const newDate = moment(date).add(parseInt(advanced_notice[dayLabel].value), "d");
+    const newDateFormat = moment(newDate).format("YYYY-MM-DD");
+    return { format: format, value: newDateFormat };
+  }
+
+  const dateFormat = moment(date).format("YYYY-MM-DD");
+
+  if (format == "hours") {
+    const hourCur = date.getHours();
+    return {
+      format: format,
+      date: dateFormat,
+      value: (hourCur + parseInt(advanced_notice[dayLabel].value)) * 60,
+    };
+  }
+  if (format == "minutes") {
+    const hourCur = date.getHours();
+    const minutesCur = date.getMinutes();
+    const newMinutesFormat =
+      minutesCur + parseInt(advanced_notice[dayLabel].value);
+    const minutes = hourCur * 60 + newMinutesFormat;
+    const minutesMax = 12 * 60 * 60;
+    if (minutes >= minutesMax) {
+      return { format: format, value: minutesMax };
+    }
+    return { format: format, date: dateFormat, value: minutes };
+  }
+}
+
+const convertTimeToMinutes = (time) => {
+  let colon = time.indexOf(":");
+  if (!colon) return 0;
+  let hour = time.slice(0, colon);
+  let minute = time.slice(colon + 1, time.length);
+  return parseInt(hour) * 60 + parseInt(minute);
+}
+
+const checkLocationTime = (time, date, locationSettings) => {
+  let dayLabel = moment().format("dddd").toLowerCase();
+  if (!locationSettings) {
+    return true;
+  }
+  var minutes = convertTimeToMinutes(time);
+  if (!locationSettings.hasOwnProperty(dayLabel)) {
+    return true;
+  }
+  if (locationSettings[dayLabel]?.time?.length == 0) {
+    return false;
+  }
+  var find = locationSettings[dayLabel]?.time?.find(({ start, end }) => {
+    console.log(convertTimeToMinutes(start), convertTimeToMinutes(end), time, minutes);
+    var startMinutes = convertTimeToMinutes(start);
+    var endMinutes = convertTimeToMinutes(end);
+    if (endMinutes < startMinutes) {
+      endMinutes += 24 * 60;
+    }
+    return minutes >= startMinutes && minutes <= endMinutes
+  });
+  if (!find) {
+    return false;
+  }
+  return true;
+}
+
+const filterSlots = (time, date, settings, locationSettings) => {
+  let slots = [];
+  let blockDates = settings.block_dates;
+  let dayLabel = moment().format("dddd").toLowerCase();
+  let dateNow = moment().format("YYYY-MM-DD");
+  let dateYYMMDD = moment(date).format("HH:mm");
+  let timeNowHHMM = moment().format("HH:mm");
+  let minutesNowHHM = convertTimeToMinutes(timeNowHHMM) + 30;
+  time = time.filter(t => checkBlockDateTimes(t, date, blockDates));
+  if (locationSettings && locationSettings.hasOwnProperty("block_dates")) {
+    time = time.filter(t => checkBlockDateTimes(t, date, locationSettings.block_dates))
+  }
+  let advanced_notice = settings.advanced_notice;
+  if (
+    advanced_notice[dayLabel]?.format &&
+    advanced_notice[dayLabel]?.format !== "days" &&
+    date == dateNow
+  ) {
+    let _preparationTime = preparationTime(advanced_notice, advanced_notice[dayLabel]?.format);
+    for (let i = 0; i < time.length; i++) {
+      let itemTime = time[i];
+      let minutes = convertTimeToMinutes(itemTime);
+      if (minutes > minutesNowHHM && minutes > _preparationTime.value && checkLocationTime(itemTime, date)) {
+        slots.push(itemTime);
+      }
+    }
+  } else {
+    for (let i = 0; i < time.length; i++) {
+      const itemTime = time[i];
+      const minutes = convertTimeToMinutes(itemTime);
+      if ((dateNow == dateYYMMDD && minutes < minutesNowHHM) || !checkLocationTime(itemTime, date)) {
+      } else {
+        slots.push(itemTime);
+      }
+    }
+  }
+  return slots;
+}
+
 app.post('/api/check_availability', cors(), bodyParser.json(),
   bodyParser.urlencoded({ extended: true }), async (_req, res) => {
     try {
-      const { product_id, time = '11:00', date, cover, restaurant_id } = _req.body
-      const availability = await _axios.post(`${process.env.BASE_URL}/booking/availability`, {
+      let { product_id, vendor, date, cover, restaurant_id } = _req.body
+      let availability = await _axios.post(`${process.env.BASE_URL}/booking/availability`, {
         date,
         restaurant: restaurant_id,
         source: process.env.SOURCE,
         credential: process.env.CREDENTIAL,
         cover
       })
-      console.log({
-        date,
-        restaurant: restaurant_id,
-        source: process.env.SOURCE,
-        credential: process.env.CREDENTIAL,
-        cover
-      }, availability)
-      const hoursDiff = moment(time, "HH:mm").subtract(9, 'hours');
-      const minutesDiff = moment(time, "HH:mm").minutes();
-      const halfHourIntervals = moment(hoursDiff).hours() * 2 + Math.floor(minutesDiff / 30);
-      const availabilitySlot = availability.data.data.split(',')
-      res.status(200).send({ available: availabilitySlot[halfHourIntervals] == 1 })
+      let slots = availability.data.data.split(',');
+      let availableSlots = [];
+      slots.forEach((slot, index) => {
+        if (slot == "0") {
+          return
+        }
+        availableSlots.push(moment("09:00", "HH:mm").add(30 * index, "m").format("HH:mm"));
+      })
+      let settings;
+      if (_.isInteger(product_id)) {
+        settings = await settingModel.findOne({ product_id }).lean();
+      } else {
+        settings = await settingModel.findOne({ sku: product_id }).lean();
+      }
+      settings = settings.settings;
+      let location = await settingModel.findOne({ type: "location", "settings.vendor": vendor}).lean();
+      let locationSettings = location?.settings || {}
+      let times = [];
+      let dateSlots = [];
+      if (settings.available_slot_specific_dates_allowed && settings.available_slot_specific_dates.length > 0) {
+        var find = settings.available_slot_specific_dates.find((v) => v.date == date);
+        dateSlots = find?.slots || [];
+      }
+      if (dateSlots?.length > 0) {
+        times = filterSlots(dateSlots, date, settings, locationSettings);
+      } else if (settings["available_slot"].length > 0 && settings["available_slot"][0]) {
+        times = filterSlots(settings["every_day"].time, date, settings, locationSettings);
+      } else {
+        let getDay = moment(date).format("dddd").toLowerCase();
+        if (settings[getDay]) {
+          times = filterSlots(settings[getDay].time, date, settings, locationSettings);
+        }
+      }
+      times = times.filter((time) => {
+        return availableSlots.includes(time);
+      })
+      res.status(200).send({ data: times });
     } catch (error) {
       console.log(error),
       res.status(200).send({ available: false })
