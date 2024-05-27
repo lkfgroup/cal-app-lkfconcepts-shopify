@@ -60,6 +60,10 @@ const STATIC_PATH =
 
 const app = express();
 
+const isNumber = (value) => {
+  return !isNaN(value);
+}
+
 // Set up Shopify authentication and webhook handling
 app.get(shopify.config.auth.path, shopify.auth.begin());
 app.get(
@@ -244,7 +248,7 @@ app.post('/api/check_availability', cors(), bodyParser.json(),
         availableSlots.push(moment("09:00", "HH:mm").add(30 * index, "m").format("HH:mm"));
       })
       let settings;
-      if (_.isInteger(product_id)) {
+      if (isNumber(product_id)) {
         settings = await settingModel.findOne({ product_id }).lean();
       } else {
         settings = await settingModel.findOne({ sku: product_id }).lean();
@@ -285,7 +289,7 @@ app.post('/api/store_front', cors(), bodyParser.json(), bodyParser.urlencoded({ 
 
     let result;
 
-    if (_.isInteger(product_id)) {
+    if (isNumber(product_id)) {
       result = await settingModel.findOne({ product_id }).lean();
     } else {
       result = await settingModel.findOne({ sku: product_id }).lean();
@@ -404,7 +408,7 @@ app.post('/api/get_data', async (_req, res) => {
     let result;
     let product;
     
-    if (_.isInteger(product_id)) {
+    if (isNumber(product_id)) {
       result = await settingModel.findOne({ product_id }).lean();
       product = await shopify.api.rest.Product.find({
         session,
@@ -414,7 +418,7 @@ app.post('/api/get_data', async (_req, res) => {
       result = await settingModel.findOne({ sku: product_id }).lean();
       product = await new shopify.api.clients.Graphql({ session }).query({
         data: `query {
-          products(first: 1, query: "tag='SKU:${product_id}'") {
+          products(first: 1, query: "tag:'SKU:${product_id}'") {
             edges {
               node {
                 id
@@ -533,7 +537,7 @@ app.post('/api/edit-settings', async (_req, res) => {
 
     let result;
 
-    if (_.isInteger(product_id)) {
+    if (isNumber(product_id)) {
       result = await settingModel.findOneAndUpdate({ product_id }, { settings: delivery }, { new: true, upsert: true })
     } else {
       result = await settingModel.findOneAndUpdate({ sku: product_id }, { settings: delivery }, { new: true, upsert: true })
