@@ -103,6 +103,29 @@ export default function Location({ shop, authAxios }) {
           enabled: true,
           time: [ { start: "9:00", end: "17:00" } ],
         },
+        sync: ["weeloy"],
+        sync_config: {
+          weeloy: {
+            base_url: "https://staging.weeloy.com",
+            x_api_key: "SItaqBFZJDagTBeQIgQqF2Eqml1pRD7234LpgBfW",
+            credential: "6LAWpA4CFDGKCqaA_8MKHFKA2wY_smquvqOw_Tj",
+            source: "LKF-SHOPIFY",
+            restaurant_id: ""
+          },
+          bistrochat: {
+            base_url: "",
+            venueId: "",
+            bookingChannel: {
+              id: "",
+              name: ""
+            }
+          },
+          eats365: {
+            base_url: "",
+            api_key: "",
+            restaurant_code: ""
+          }
+        }
       },
       vendor: ""
     },
@@ -441,7 +464,44 @@ export default function Location({ shop, authAxios }) {
           <Layout.AnnotatedSection title="Reservation System Sync">
             <LegacyCard>
               <LegacyCard.Section>
-
+                <ChoiceList
+                  choices={[
+                    { label: "Weeloy", value: "weeloy", renderChildren: () => {
+                      return formik.values.delivery.sync.includes("weeloy") && (
+                        <FormLayout>
+                          <TextField label="Base URL" id="delivery.sync_config.weeloy.base_url" name="delivery.sync_config.weeloy.base_url" onChange={handleChange} value={formik.values.delivery.sync_config.weeloy.base_url} />
+                          <TextField label="API Key" id="delivery.sync_config.weeloy.x_api_key" name="delivery.sync_config.weeloy.x_api_key" onChange={handleChange} value={formik.values.delivery.sync_config.weeloy.x_api_key} />
+                          <TextField label="Credential" id="delivery.sync_config.weeloy.credential" name="delivery.sync_config.weeloy.credential" onChange={handleChange} value={formik.values.delivery.sync_config.weeloy.credential} />
+                          <TextField label="Source" id="delivery.sync_config.weeloy.source" name="delivery.sync_config.weeloy.source" onChange={handleChange} value={formik.values.delivery.sync_config.weeloy.source} />
+                          <TextField label="Restaurant ID" id="delivery.sync_config.weeloy.restaurant_id" name="delivery.sync_config.weeloy.restaurant_id" onChange={handleChange} value={formik.values.delivery.sync_config.weeloy.restaurant_id} />
+                        </FormLayout>
+                      )
+                    } },
+                    { label: "Bistrochat", value: "bistrochat", renderChildren: () => {
+                      return formik.values.delivery.sync.includes("bistrochat") && (
+                        <FormLayout>
+                          <TextField label="Base URL" id="delivery.sync_config.bistrochat.base_url" name="delivery.sync_config.bistrochat.base_url" onChange={handleChange} value={formik.values.delivery.sync_config.bistrochat.base_url} />
+                          <TextField label="Venue ID" id="delivery.sync_config.bistrochat.venueId" name="delivery.sync_config.bistrochat.x_api_key" onChange={handleChange} value={formik.values.delivery.sync_config.bistrochat.venueId} />
+                          <TextField label="Booking channel ID" id="delivery.sync_config.bistrochat.bookingChannel.id" name="delivery.sync_config.bistrochat.bookingChannel.id" onChange={handleChange} value={formik.values.delivery.sync_config.bistrochat.bookingChannel.id} />
+                          <TextField label="Booking channel name" id="delivery.sync_config.bistrochat.bookingChannel.name" name="delivery.sync_config.bistrochat.bookingChannel.name" onChange={handleChange} value={formik.values.delivery.sync_config.bistrochat.bookingChannel.name} />
+                        </FormLayout>
+                      )
+                    } },
+                    { label: "Eats365", value: "eats365", renderChildren: () => {
+                      return formik.values.delivery.sync.includes("eats365") && (
+                        <FormLayout>
+                          <TextField label="Base URL" id="delivery.sync_config.eats365.base_url" name="delivery.sync_config.eats365.base_url" onChange={handleChange} value={formik.values.delivery.sync_config.eats365.base_url} />
+                          <TextField label="API Key" id="delivery.sync_config.eats365.api_key" name="delivery.sync_config.eats365.api_key" onChange={handleChange} value={formik.values.delivery.sync_config.eats365.api_key} />
+                          <TextField label="Credential" id="delivery.sync_config.eats365.restaurant_code" name="delivery.sync_config.eats365.restaurant_code" onChange={handleChange} value={formik.values.delivery.sync_config.eats365.restaurant_code} />
+                        </FormLayout>
+                      )
+                    } }
+                  ]}
+                  name="delivery.sync"
+                  id="delivery.sync"
+                  selected={formik.values.delivery.sync}
+                  onChange={handleChange}
+                />
               </LegacyCard.Section>
             </LegacyCard>
           </Layout.AnnotatedSection>
