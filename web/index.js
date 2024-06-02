@@ -190,11 +190,52 @@ const checkLocationTime = (time, date, locationSettings) => {
 }
 
 const filterSlots = (time, date, settings, locationSettings) => {
+  let locationSlots = [];
+  if (locationSettings) {
+    if (locationSettings.hasOwnProperty("available_slot") && locationSettings.available_slot[0]) {
+      locationSettings?.every_day?.time?.forEach(({ start, end }) => {
+        let startMinutes = convertTimeToMinutes(start);
+        let endMinutes = convertTimeToMinutes(end);
+        if (endMinutes < startMinutes) {
+          endMinutes += 24 * 60;
+        }
+        let minutes = startMinutes;
+        while (minutes <= 1440  && minutes <= endMinutes) {
+          locationSlots.push(minutes);
+          minutes += 30;
+        }
+      })
+    } else {
+      let dayLabel = moment(date).format("dddd").toLowerCase();
+      if (locationSettings.hasOwnProperty(dayLabel)) {
+        locationSettings[dayLabel].time?.forEach(({ start, end }) => {
+          let startMinutes = convertTimeToMinutes(start);
+          let endMinutes = convertTimeToMinutes(end);
+          if (endMinutes < startMinutes) {
+            endMinutes += 24 * 60;
+          }
+          let minutes = startMinutes;
+          while (minutes <= 1440  && minutes <= endMinutes) {
+            locationSlots.push(minutes);
+            minutes += 30;
+          }
+        })
+      }
+    }
+    locationSlots = _.uniq(locationSlots);
+    locationSlots = _.sortBy(locationSlots);
+    locationSlots = locationSlots.map((slot) => {
+      return moment.utc().startOf('day').add({ minutes: slot }).format('HH:mm');
+    })
+  }
+  if (time?.length == 0) {
+    time = locationSlots;
+  }
   let slots = [];
   let blockDates = settings.block_dates;
-  let dayLabel = moment().format("dddd").toLowerCase();
+  let dayLabel = moment(date).format("dddd").toLowerCase();
   let dateNow = moment().format("YYYY-MM-DD");
-  let dateYYMMDD = moment(date).format("HH:mm");
+  let dateYYMMDD = moment().format("YYYY-MM-DD");
   let timeNowHHMM = moment().format("HH:mm");
   let minutesNowHHM = convertTimeToMinutes(timeNowHHMM) + 30;
   time = time.filter(t => checkBlockDateTimes(t, date, blockDates));
@@ -211,7 +252,7 @@ const filterSlots = (time, date, settings, locationSettings) => {
     for (let i = 0; i < time.length; i++) {
       let itemTime = time[i];
       let minutes = convertTimeToMinutes(itemTime);
-      if (minutes > minutesNowHHM && minutes > _preparationTime.value && checkLocationTime(itemTime, date)) {
+      if (minutes > minutesNowHHM && minutes > _preparationTime.value && locationSlots.includes(itemTime)) {
         slots.push(itemTime);
       }
     }
@@ -219,7 +260,7 @@ const filterSlots = (time, date, settings, locationSettings) => {
     for (let i = 0; i < time.length; i++) {
       const itemTime = time[i];
       const minutes = convertTimeToMinutes(itemTime);
-      if ((dateNow == dateYYMMDD && minutes < minutesNowHHM) || !checkLocationTime(itemTime, date)) {
+      if ((dateNow == dateYYMMDD && minutes < minutesNowHHM) || !locationSlots.includes(itemTime)) {
       } else {
         slots.push(itemTime);
       }
@@ -253,9 +294,97 @@ app.post('/api/check_availability', cors(), bodyParser.json(),
       } else {
         settings = await settingModel.findOne({ sku: product_id }).lean();
       }
-      settings = settings.settings;
+      if (settings && settings?.settings) {
+        settings = settings.settings;
+      } else {
+        settings = {
+          discount: {
+            monday: '',
+            tuesday: '',
+            wednesday: '',
+            thursday: '',
+            friday: '',
+            saturday: '',
+            sunday: '',
+            specific_dates: [],
+            exclude_dates: [],
+            rolling_days: [
+              { days: 0, amount: 0}
+            ]
+          },
+          discount_amount: 0,
+          discount_choices: [],
+          block_dates: [],
+          reverse_block_dates: false,
+          available_slot: [true],
+          available_slot_specific_dates_allowed: false,
+          available_slot_specific_dates: [],
+          availability: ['every_day'],
+          advanced_notice: {
+            monday: {
+              format: 'hours',
+              value: 0,
+            },
+            tuesday: {
+              format: 'hours',
+              value: 0,
+            },
+            wednesday: {
+              format: 'hours',
+              value: 0,
+            },
+            thursday: {
+              format: 'hours',
+              value: 0,
+            },
+            friday: {
+              format: 'hours',
+              value: 0,
+            },
+            saturday: {
+              format: 'hours',
+              value: 0,
+            },
+            sunday: {
+              format: 'hours',
+              value: 0,
+            },
+          },
+          every_day: {
+            time: [],
+          },
+          monday: {
+            enabled: true,
+            time: [],
+          },
+          tuesday: {
+            enabled: true,
+            time: [],
+          },
+          wednesday: {
+            enabled: true,
+            time: [],
+          },
+          thursday: {
+            enabled: true,
+            time: [],
+          },
+          friday: {
+            enabled: true,
+            time: [],
+          },
+          saturday: {
+            enabled: true,
+            time: [],
+          },
+          sunday: {
+            enabled: true,
+            time: [],
+          },
+        }
+      }
       let location = await settingModel.findOne({ type: "location", "settings.vendor": vendor}).lean();
-      let locationSettings = location?.settings || {}
+      let locationSettings = location?.settings?.delivery || {}
       let times = [];
       let dateSlots = [];
       if (settings.available_slot_specific_dates_allowed && settings.available_slot_specific_dates.length > 0) {
@@ -289,10 +418,102 @@ app.post('/api/store_front', cors(), bodyParser.json(), bodyParser.urlencoded({ 
 
     let result;
 
+    let defaultSettings = {
+      discount: {
+        monday: '',
+        tuesday: '',
+        wednesday: '',
+        thursday: '',
+        friday: '',
+        saturday: '',
+        sunday: '',
+        specific_dates: [],
+        exclude_dates: [],
+        rolling_days: [
+          { days: 0, amount: 0}
+        ]
+      },
+      discount_amount: 0,
+      discount_choices: [],
+      block_dates: [],
+      reverse_block_dates: false,
+      available_slot: [true],
+      available_slot_specific_dates_allowed: false,
+      available_slot_specific_dates: [],
+      availability: ['every_day'],
+      advanced_notice: {
+        monday: {
+          format: 'hours',
+          value: 0,
+        },
+        tuesday: {
+          format: 'hours',
+          value: 0,
+        },
+        wednesday: {
+          format: 'hours',
+          value: 0,
+        },
+        thursday: {
+          format: 'hours',
+          value: 0,
+        },
+        friday: {
+          format: 'hours',
+          value: 0,
+        },
+        saturday: {
+          format: 'hours',
+          value: 0,
+        },
+        sunday: {
+          format: 'hours',
+          value: 0,
+        },
+      },
+      every_day: {
+        time: [],
+      },
+      monday: {
+        enabled: true,
+        time: [],
+      },
+      tuesday: {
+        enabled: true,
+        time: [],
+      },
+      wednesday: {
+        enabled: true,
+        time: [],
+      },
+      thursday: {
+        enabled: true,
+        time: [],
+      },
+      friday: {
+        enabled: true,
+        time: [],
+      },
+      saturday: {
+        enabled: true,
+        time: [],
+      },
+      sunday: {
+        enabled: true,
+        time: [],
+      },
+    }
+
     if (isNumber(product_id)) {
       result = await settingModel.findOne({ product_id }).lean();
     } else {
       result = await settingModel.findOne({ sku: product_id }).lean();
+    }
+
+    if (!result) {
+      result = {
+        settings: defaultSettings
+      }
     }
 
     if (_req?.body?.vendor) {
