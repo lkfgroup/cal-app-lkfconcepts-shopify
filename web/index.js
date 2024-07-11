@@ -235,7 +235,7 @@ const filterSlots = (time, date, settings, locationSettings) => {
   let blockDates = settings.block_dates;
   let dayLabel = moment(date).format("dddd").toLowerCase();
   let dateNow = moment().format("YYYY-MM-DD");
-  let dateYYMMDD = moment().format("YYYY-MM-DD");
+  let dateYYMMDD = moment(date).format("YYYY-MM-DD");
   let timeNowHHMM = moment().format("HH:mm");
   let minutesNowHHM = convertTimeToMinutes(timeNowHHMM) + 30;
   time = time.filter(t => checkBlockDateTimes(t, date, blockDates));
