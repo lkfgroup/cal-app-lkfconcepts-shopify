@@ -273,12 +273,21 @@ app.post('/api/check_availability', cors(), bodyParser.json(),
   bodyParser.urlencoded({ extended: true }), async (_req, res) => {
     try {
       let { product_id, vendor, date, cover, restaurant_id } = _req.body
+      let products = {
+        "HK_HK_R_LkfFumi": "MainDining",
+        "HK_HK_R_LkfAriaItalian": "MainDining",
+        "HK_HK_R_LkfBACI": "Main Dining",
+        "HK_HK_R_LkfKyotojoe": "MainDining",
+        "HK_HK_R_LkfPorterhouse": "MainDining",
+        "HK_HK_R_LkfTokiojoe": "Main Dining Area",
+      }
       let availability = await _axios.post(`${process.env.BASE_URL}/booking/availability`, {
         date,
         restaurant: restaurant_id,
         source: process.env.SOURCE,
         credential: process.env.CREDENTIAL,
-        cover
+        cover,
+        product: _.get(products, restaurant_id, "MainDining")
       })
       let slots = availability.data.data.split(',');
       let availableSlots = [];
