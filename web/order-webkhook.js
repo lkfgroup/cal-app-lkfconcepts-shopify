@@ -4,6 +4,7 @@ import shopModel from "./models/shop.model.js";
 import shopify from "./shopify.js";
 import fulFillOrder from "./fulfill-order.js";
 import _ from "lodash";
+import axios from "axios";
 
 const processOrderCreatedWebhook = async (webhook, test = false) => {
 
@@ -55,6 +56,8 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
       }))
 
       let quantity = 0
+
+      let gift_cards = products.filter((p) => p.product_type == "Gift Card");
           
       products.filter((p) => p.product_type == "Experience").forEach((p) => {
         quantity += Number(p.quantity);
@@ -74,8 +77,16 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
         let variant = group[0];
         return `${variant.title}, ${variant.variant_title ? `${variant.variant_title} x ${quantity}` : `Default x ${quantity}`}`;
       })
-  
-      let deposit = 0;
+
+      let deposit = parseFloat(payload.current_total_price);
+
+      gift_cards.forEach((p) => {
+        let discount = 0;
+        p.discount_allocations.forEach(d => discount += parseFloat(d.amount))
+        let line_item_price = parseFloat(p.price) * parseFloat(p.quantity);
+        line_item_price -= parseFloat(discount);
+        deposit = deposit - line_item_price
+      })
 
       // let discounts = [];
       
@@ -89,13 +100,13 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
       //   }
       // })
   
-      products.forEach((p) => {
-        let total_discount = 0;
-        p.discount_allocations.forEach(discount => {
-          total_discount += parseFloat(discount.amount)
-        })
-        deposit += (parseFloat(p.price) * Number(p.quantity)) - parseFloat(p.total_discount) - parseFloat(total_discount);
-      })
+      // products.forEach((p) => {
+      //   let total_discount = 0;
+      //   p.discount_allocations.forEach(discount => {
+      //     total_discount += parseFloat(discount.amount)
+      //   })
+      //   deposit += (parseFloat(p.price) * Number(p.quantity)) - parseFloat(p.total_discount) - parseFloat(total_discount);
+      // })
   
       let request = [
         `Product Name: ${productName.join(", ")}`,
@@ -129,6 +140,13 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
       if (!test) {
       const result = await _axios.post(`${process.env.BASE_URL}/booking/create`, data);
       console.log('test', result)
+      const syncData = {
+        confirmation: _.get(result, "data.data.confirmation", ""),
+        ...data
+      }
+      console.log("syncData", syncData);
+      const fiveTran = await axios.post("https://webhooks.fivetran.com/webhooks/b3eeafab-8e25-4388-aabf-dedb2247ecd1", syncData);
+      console.log("fiveTran", fiveTran.data);
       const fulfill = await fulFillOrder(shop, payload.id);
       console.log("fulfill", fulfill);
       }
