@@ -117,9 +117,15 @@ export default function Index({ shop, authAxios }) {
       <IndexTable.Cell>
         <Button
           size="slim"
-          onClick={() => {
-            let sku = findSku(node.tags);
-            navigate(`/products/${sku ? sku : parseId(node.id)}`)
+          onClick={(e) => {
+            let sku = findSku(node.tags);            
+	    if( e.button === 1){
+	       const currentUrl = new URL(window.location.href);
+               const searchParams = new URLSearchParams(currentUrl.search);
+	       window.open(`/products/${sku ? sku : parseId(node.id)}?${searchParams.toString()}`, '_blank');
+	    } else {
+	       navigate(`/products/${sku ? sku : parseId(node.id)}`)
+	    }
           }}
         >
           Configure
@@ -190,7 +196,7 @@ export default function Index({ shop, authAxios }) {
     await sleep(1);
     return true;
   };
-
+  
   const tabs = itemStrings.map((item, index) => ({
     content: item,
     index,
@@ -382,7 +388,6 @@ export default function Index({ shop, authAxios }) {
       </Layout>
       <div style={{ width: 'fit-content', margin: '10px auto 0' }}>
         <Pagination
-          // label={`Page`}
           hasPrevious={pageInfo?.hasPreviousPage}
           onPrevious={() => {
             handlePrevious(pageInfo.startCursor);
