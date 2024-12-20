@@ -4,7 +4,6 @@ import shopModel from "./models/shop.model.js";
 import shopify from "./shopify.js";
 import fulFillOrder from "./fulfill-order.js";
 import _ from "lodash";
-import libphonenumber from libphonenumber;
 
 const processOrderCreatedWebhook = async (webhook, test = false) => {
 
@@ -112,24 +111,6 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
 
       request = request.join(", ")
 
-      // Gareth-Optimization-MY Changes START
-      let cusPhoneNumber = payload?.customer?.phone ? payload?.customer?.phone : "";
-      let formattedPhone = ""
-      // IF original phone number has country code use this:
-      if (cusPhoneNumber.includes('+')){
-        const unFormatPhone = payload?.customer?.phone
-        formattedPhone = unFormatPhone ? getCountryCode(unFormatPhone) : "";
-      } else if (cusPhoneNumber === ""){
-        console.log("Phone Number not provided")
-      } else {
-        let countryCode = payload?.billing_address?.country_code ? payload?.billing_address?.country_code : "";
-        const libPhoneUtil = libphonenumbers.PhoneNumberUtil.getInstance();
-        const unFormatPhone = payload?.customer?.phone ? payload?.customer?.phone : "";
-        const cusPhoneCC = libPhoneUtil.parseAndKeepRawInput(unFormatPhone, countryCode);
-        formattedPhone = `${cusPhoneCC} ${unFormatPhone}`;
-      }
-      // Gareth-Optimization-MY Changes END
-
       const data = {
         restaurant: getRestaurant(vendor),
         cover: quantity,
@@ -140,7 +121,7 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
         email: payload.email,
         firstname: payload?.customer?.first_name ? payload?.customer?.first_name : "",
         lastname: payload?.customer?.last_name ? payload?.customer?.last_name : "",
-        phone: formattedPhone,
+        phone: payload?.customer?.phone ? payload?.customer?.phone : "",
         notify: "yes",
         request: request
       }
@@ -174,27 +155,5 @@ const getRestaurant = (vendor) => {
 
   }
 
-}
-
-function getCountryCode( input ) {
-  // Set default country code to US if no real country code is specified
-  const defaultCountryCode = input.substr( 0, 1 ) !== '+' ? 'US' : null;
-  let formatted = new libphonenumber.asYouType( defaultCountryCode ).input( input );
-  let countryCode = '';
-  let withoutCountryCode = formatted;
-  
-  if ( defaultCountryCode === 'US' ) {
-    countryCode = '+1';
-    formatted = '+1 ' + formatted;
-  }
-  else {
-    const parts = formatted.split( ' ' );
-    countryCode = parts.length > 1 ? parts.shift() : '';
-    withoutCountryCode = parts.join( ' ' );
-  }
-  
-  return {
-    formatted,
-  }
 }
 export default processOrderCreatedWebhook;
