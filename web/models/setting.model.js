@@ -6,9 +6,16 @@ const settingSchema = mongoose.Schema(
             type: "String",
             required: true,
         },
+        type: {
+            type: "String",
+            required: true,
+            default: "product",
+        },
         product_id: {
             type: 'String',
-            required: true
+        },
+        sku: {
+            type: 'String',
         },
         settings: {
             type: "Object"

@@ -1,3 +1,29 @@
-# This file stores configurations for your Shopify app.
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-scopes = "read_orders,read_products,read_product_listings,write_orders,read_fulfillments,write_fulfillments,write_merchant_managed_fulfillment_orders,read_merchant_managed_fulfillment_orders"
+client_id = "06de61f1ad99ae7074cede8d0d58f715"
+name = "LKF Concepts Demo"
+handle = "lkf-concepts-demo-1"
+application_url = "https://bikini-faster-directors-excluded.trycloudflare.com"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "justin-lkf-concepts-demo.myshopify.com"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_customers,read_draft_orders,read_fulfillments,read_merchant_managed_fulfillment_orders,read_orders,read_product_listings,read_products,write_customers,write_draft_orders,write_fulfillments,write_merchant_managed_fulfillment_orders,write_orders"
+use_legacy_install_flow = true
+
+[auth]
+redirect_urls = [
+  "https://bikini-faster-directors-excluded.trycloudflare.com/auth/callback",
+  "https://bikini-faster-directors-excluded.trycloudflare.com/auth/shopify/callback",
+  "https://bikini-faster-directors-excluded.trycloudflare.com/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2023-07"
+
+[pos]
+embedded = false

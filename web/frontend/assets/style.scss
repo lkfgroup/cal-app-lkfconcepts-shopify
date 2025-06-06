@@ -302,21 +302,22 @@
 }
 
 .spinner {
-
-  background-color: white;
+  position: fixed;
   align-items: center;
   justify-content: center;
   display: flex;
   top: 0;
   left: 0;
   z-index: 99;
+  height: 100%;
+  width: 100%;
 
-  >span {
+  > span {
     display: flex;
     align-items: center;
     justify-content: center;
 
-    >svg {
+    > svg {
       width: 20%;
       height: 20%;
     }

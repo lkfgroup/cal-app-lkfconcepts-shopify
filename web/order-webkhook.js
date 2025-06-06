@@ -3,6 +3,9 @@ import { _axios } from "./index.js";
 import shopModel from "./models/shop.model.js";
 import shopify from "./shopify.js";
 import fulFillOrder from "./fulfill-order.js";
+import _ from "lodash";
+import axios from "axios";
+import parsePhoneNumber from 'libphonenumber-js'
 
 const processOrderCreatedWebhook = async (webhook, test = false) => {
 
@@ -18,11 +21,25 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
       },
     });
 
-    let date = payload.line_items[0].properties.find(prop => prop.name === 'Booking date')?.value || ''
-    let time = payload.line_items[0].properties.find(prop => prop.name === 'Booking time')?.value || ''
+    let date;
+    let time;
+    let discount;
+    let vendor;
+
+    let line_items = payload.line_items
+    for (let i = 0; i < line_items.length; i++) {
+      let line_item = line_items[i];
+      date = line_item.properties.find(prop => prop.name === 'Booking date')?.value || '';
+      time = line_item.properties.find(prop => prop.name === 'Booking time')?.value || '';
+      discount = line_item.properties.find(prop => prop.name === 'Booking discount')?.value || '';
+      vendor = line_item.vendor;
+      if (date && time && vendor) {
+        break;
+      }
+    }
     let financial_status = payload?.financial_status || ''
     if (date && time && financial_status == 'paid') {
-      let dateFormat = moment(date);
+      let dateFormat = moment(new Date(date));
       if (dateFormat.year() === 2001 && !(date || "").includes("2001")) {
         dateFormat.set("year", moment().year());
       }
@@ -34,29 +51,91 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
         })
         let product_type = response?.body?.product?.product_type ? response?.body?.product?.product_type : ""
         return {
-          name: line_item?.title,
-          quantity: line_item?.quantity,
-          price: line_item?.price,
-          total_discount: line_item?.total_discount,
           product_type,
+          ...line_item
         }
       }))
-  
-      let productName = products.filter((p) => p.product_type == "Experience").map((p) => {
-        return `${p.name} x ${p.quantity}`
+
+      let quantity = 0
+
+      let gift_cards = products.filter((p) => p.product_type == "Gift Card");
+          
+      products.filter((p) => p.product_type == "Experience").forEach((p) => {
+        quantity += Number(p.quantity);
       })
-  
-      let deposit = 0;
-  
-      products.forEach((p) => {
-        deposit += (Number(p.price) * Number(p.quantity)) - Number(p.total_discount);
+
+      products = products.filter((p) => p.product_type != "Gift Card");
+
+      let productName = [];
+
+      let groups = _.groupBy(products, "variant_id");
+
+      productName = Object.keys(groups).map((value, index) => {
+        let group = groups[value];
+        let quantity = _.sumBy(group, function(o) {
+          return o.quantity
+        })
+        let variant = group[0];
+        return `${variant.title}, ${variant.variant_title ? `${variant.variant_title} x ${quantity}` : `Default x ${quantity}`}`;
       })
+
+      let deposit = parseFloat(payload.current_total_price);
+
+      gift_cards.forEach((p) => {
+        let discount = 0;
+        p.discount_allocations.forEach(d => discount += parseFloat(d.amount))
+        let line_item_price = parseFloat(p.price) * parseFloat(p.quantity);
+        line_item_price -= parseFloat(discount);
+        deposit = deposit - line_item_price
+      })
+
+      // let discounts = [];
+      
+      // payload?.discount_applications?.forEach((list) => {
+      //   if (list?.title) {
+      //     discounts.push(list?.title);
+      //   } else if (list?.code) {
+      //     discounts.push(list?.code);
+      //   } else {
+
+      //   }
+      // })
   
-      const request = `Product Name: ${productName.join(", ")}, Order ID: LKFC${payload.order_number}, Deposit: HK$${deposit}, Special Request: ${payload?.note ? payload?.note : ""}`
+      // products.forEach((p) => {
+      //   let total_discount = 0;
+      //   p.discount_allocations.forEach(discount => {
+      //     total_discount += parseFloat(discount.amount)
+      //   })
+      //   deposit += (parseFloat(p.price) * Number(p.quantity)) - parseFloat(p.total_discount) - parseFloat(total_discount);
+      // })
+  
+      let request = [
+        `Product Name: ${productName.join(", ")}`,
+        `Order ID: LKFC${payload.order_number}`,
+        `Deposit: HK$${deposit.toFixed(2)}`,
+      ]
+
+      if (discount) {
+        request.push(`Discounts: ${discount}`)
+      }
+
+      request.push(`Special Request: ${payload?.note ? payload?.note : ""}`)
+
+      request = request.join(", ")
+
+      let phone = "";
+
+      try {
+        phone = payload?.billing_address?.phone ? payload?.billing_address?.phone : "";
+        phone = parsePhoneNumber(_.get(payload, "billing_address.phone", ""), _.get(payload, "billing_address.country_code", "HK"));
+        phone = _.get(phone, "number", "");
+      } catch(error) {
+
+      }
 
       const data = {
-        restaurant: getRestaurant(payload.line_items[0].vendor),
-        cover: payload.line_items[0].quantity,
+        restaurant: getRestaurant(vendor),
+        cover: quantity,
         date: dateFormat.format('YYYY-MM-DD'),
         time: time,
         source: process.env.SOURCE,
@@ -64,15 +143,26 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
         email: payload.email,
         firstname: payload?.customer?.first_name ? payload?.customer?.first_name : "",
         lastname: payload?.customer?.last_name ? payload?.customer?.last_name : "",
-        phone: payload?.customer?.phone ? payload?.customer?.phone : "",
+        phone: phone,
+        notify: "yes",
         request: request
       }
       console.log(data);
       if (!test) {
       const result = await _axios.post(`${process.env.BASE_URL}/booking/create`, data);
-      console.log('test', result)
-      const fulfill = await fulFillOrder(shop, payload.id);
-      console.log("fulfill", fulfill);
+        if (_.get(result, "data.status", "-1") == "1") {
+          const syncData = {
+            confirmation: _.get(result, "data.data.confirmation", ""),
+            ...data
+          };
+          console.log("syncData", syncData);
+
+          const fiveTran = await axios.post("https://webhooks.fivetran.com/webhooks/b3eeafab-8e25-4388-aabf-dedb2247ecd1", syncData);
+          console.log("fiveTran", fiveTran.data);
+          
+          const fulfill = await fulFillOrder(shop, payload.id);
+          console.log("fulfill", fulfill);
+        }
       }
     }
 
@@ -81,15 +171,17 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
   }
 }
 
+const RESTAURANT_ID = "HK_HK_R_LkfFumi,HK_HK_R_LkfAriaItalian,HK_HK_R_LkfBACI,HK_HK_R_LkfKyotojoe,HK_HK_R_LkfPorterhouse,HK_HK_R_LkfTokiojoe,HK_HK_R_LkfFumiJoe"
+
 const getRestaurant = (vendor) => {
-  const restaurantList = process.env.RESTAURANT_ID.split(',')
+  const restaurantList = RESTAURANT_ID.split(',')
   if (vendor && vendor.toLowerCase() === 'baci') {
-    return "HK_HK_R_LkfCiaoChow"
+    return "HK_HK_R_LkfBACI"
   }
   for (let item of restaurantList) {
     const [key, value] = item.split('HK_HK_R_Lkf')
 
-    if (vendor && value.toLowerCase().includes(vendor.replace(" ", "").toLowerCase())) {
+    if (vendor && value && value.toLowerCase().includes(vendor.replace(" ", "").toLowerCase())) {
       return item
     }
 
