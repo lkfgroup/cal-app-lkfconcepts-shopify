@@ -1,23 +1,46 @@
 <script src="https://code.jquery.com/ui/1.13.0/jquery-ui.js" defer="defer"></script>
 {% assign randomNumber = "now" | date: "%N" %}
 <script src="{{ 'datepicker.js' | asset_url | split: '?' | first }}?v={{ randomNumber }}" defer="defer"></script>
+{% assign lkf = false %}
+{% if shop.permanent_domain == "justin-lkf-concepts-demo.myshopify.com" or shop.permanent_domain == "lkf-association.myshopify.com" %}
+  {% assign lkf = true %}
+{% endif %}
 <div id="lkf-datepicker-container">
+  <div class="product-block">
+    <script>
+      window.lkfData = {
+        moneyFormat: {{ shop.money_format | json }},
+        moneyFormatWithCurrency: {{ shop.money_with_currency_format | json }},
+      }
+    </script>
+    <script id="lkf-product-data" type="application/json">{{ product | json }}</script>
+    <script id="lkf-product-options" type="application/json">{{ product.options_with_values | json }}</script>
+    <div id="lkf-variant-picker"></div>
+  </div>
   <div class="product-block">
     <div class="datepicker">
       <div class="datepicker__inner">
         <div class="datepicker__input">
-          <label for="Date-0-0">Select date</label>
-          <input class="arrival_date" type="text" id="Date-0-0" placeholder="Select date">
+          {% assign select_date_label = "Select date" %}
+          {% if localization.language.iso_code == "zh-TW" %}
+            {% assign select_date_label = "選擇日期" %}
+          {% endif %}
+          <label for="Date-0-0">{{ select_date_label }}</label>
+          <input class="arrival_date {% if lkf %}input{% endif %}" type="text" id="Date-0-0" placeholder="{{ select_date_label }}">
         </div>
         <div class="datepicker__input">
-          <label for="Arrival Time-0-1">Select time</label>
-          <select class="arrival_time">
-            <option value="" disabled selected>Select time</option>
+          {% assign select_time_label = "Available time" %}
+          {% if localization.language.iso_code == "zh-TW" %}
+            {% assign select_time_label = "可訂時間" %}
+          {% endif %}
+          <label for="Arrival Time-0-1">{{ select_time_label }}</label>
+          <select class="arrival_time {% if lkf %}input{% endif %}">
+            <option value="" disabled selected>{{ select_time_label }}</option>
           </select>
         </div>
-        <div class="datepicker__input">
-          <a class="btn">Check Availability</a>
-        </div>
+        {% comment %} <div class="datepicker__input">
+          <a id="check_availability" class="btn">Check Availability</a>
+        </div> {% endcomment %}
       </div>
     </div>
   </div>
@@ -157,19 +180,47 @@
   .datepicker__inner {
     display: flex;
     align-items: flex-end;
-    gap: 8px;
     border: 1px solid;
     border-color: var(--colorBorder);
     padding: 15px;
     justify-content: space-between;
+    gap: 15px;
+    flex-wrap: wrap;
   }
 
-  .datepicker__inner .datepicker__input select {
+  .datepicker__inner .datepicker__input {
     width: 100%;
   }
 
+  .datepicker__inner .datepicker__input select, .datepicker__inner .datepicker__input input {
+    width: 100%;
+  }
+
+  .datepicker__inner .errors {
+    margin-bottom: 0;
+    width: 100%;
+  }
+
+  @media only screen and (min-width: 576px) {
+    .datepicker__inner .datepicker__input {
+      width: calc(50% - 7.5px);
+    }
+  }
+
+  #lkf-variant-picker table thead tr th, #lkf-variant-picker table tbody tr td {
+    text-align: center;
+  }
+
+  #lkf-variant-picker table thead tr th:nth-child(1), #lkf-variant-picker table tbody tr td:nth-child(1) {
+    text-align: left;
+  }
+
+  #lkf-variant-picker table tbody tr.person-sub-row td:first-child {
+    padding-left: 40px;
+  }
+
   @media only screen and (max-width: 768px) {
-    .datepicker__inner {
+    {% comment %} .datepicker__inner {
       display: block;
     }
 
@@ -180,16 +231,269 @@
     .datepicker__inner .datepicker__input input, .datepicker__inner .datepicker__input select {
       width: auto;
       max-width: 100%;
+    } {% endcomment %}
+
+    #lkf-variant-picker table tbody tr.person-sub-row td:first-child {
+      padding-left: 30px;
+    }
+    
+    #lkf-variant-picker table thead tr th:nth-child(2), #lkf-variant-picker table tbody tr td:nth-child(2) {
+      display: none;
     }
   }
+
+  #lkf-variant-picker .js-qty__wrapper {
+    position: relative;
+  }
+
+  #lkf-variant-picker .js-qty__wrapper .tooltiptext {
+    visibility: visible;
+    width: 170px;
+    background: #fff6f6;
+    color: #fff;
+    text-align: center;
+    border-radius: 3px;
+    padding: 5px 0;
+    position: absolute;
+    z-index: 999;
+    border: 1px solid #d02e2e;
+    color: #d02e2e;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 120%;
+  }
+
+  #lkf-variant-picker .js-qty__wrapper .tooltiptext::after {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent #d02e2e transparent;
+  }
 </style>
+{% if lkf %}
+  <style>
+    @media only screen and (min-width: 769px) {
+      #lkf-datepicker-container .medium-up--show {
+        display: block !important;
+      }
+    }
+  
+    #lkf-datepicker-container .hide {
+      display: none !important;
+    }
+  
+    @media only screen and (min-width: 769px) {
+      #lkf-datepicker-container .medium-up--hide {
+        display: none !important;
+      }
+    }
+  
+    #lkf-datepicker-container .show {
+      display: block !important;
+    }
+  
+    .lkf-variant-picker table td:first-child {
+      width: 50%;
+    }
+    
+    #lkf-datepicker-container {
+      font-size: var(--font-size-body-75);
+    }
+
+    #lkf-datepicker-container .product-block {
+      margin-bottom: 25px;
+    }
+  
+    #lkf-datepicker-container table {
+      background: #aaaaaa;
+      border: 0 none;
+      border-spacing: 1px;
+      position: relative;
+      width: 100%;
+    }
+    
+    #lkf-datepicker-container table td, #lkf-datepicker-container table th {
+      background: #ffffff;
+      border: 0 none;
+      padding: 10px 15px;
+      text-align: left;
+    }
+    
+    #lkf-datepicker-container table th {
+      font-weight: 700;
+    }
+
+    #lkf-datepicker-container .js-qty__wrapper {
+      display: inline-block;
+      max-width: 80px;
+      min-width: 60px;
+      overflow: visible;
+      position: relative;
+    }
+    
+    #lkf-datepicker-container .js-qty__num {
+      background: none;
+      display: block;
+      margin: 0;
+      padding: 5px 20px;
+      text-align: center;
+      width: 100%;
+      z-index: 1;
+    }
+
+    #lkf-datepicker-container .js-qty__adjust{
+      fill:var(--color-text);
+      backface-visibility:hidden;
+      background:none;
+      border:0 none;
+      bottom:0;
+      cursor:pointer;
+      display:block;
+      line-height:1;
+      overflow:hidden;
+      padding:0 10px;
+      position:absolute;
+      text-align:center;
+      top:0;
+      transition:background-color 0.1s ease-out;
+      -webkit-user-select:none;
+      -moz-user-select:none;
+      user-select:none;
+      z-index:2;
+    }
+    
+    #lkf-datepicker-container .js-qty__adjust .icon{
+      fill:inherit;
+      display:block;
+      font-size:8px;
+      height:10px;
+      vertical-align:middle;
+      width:10px;
+    }
+    
+    #lkf-datepicker-container .js-qty__adjust:hover{
+      background-color:var(--color-background-darker-meta-alpha);
+      color:var(--color-text);
+    }
+    
+    #lkf-datepicker-container .js-qty__num:active~.js-qty__adjust, #lkf-datepicker-container  .js-qty__num:focus~.js-qty__adjust{
+      border-color:var(--color-text);
+    }
+    
+    #lkf-datepicker-container .js-qty__adjust--plus{
+      right:0;
+    }
+    
+    #lkf-datepicker-container .js-qty__adjust--minus{
+      left:0;
+    }
+
+    #lkf-datepicker-container .icon__fallback-text {
+      clip: rect(0 0 0 0);
+      border: 0;
+      height: 1px;
+      margin: -1px;
+      overflow: hidden;
+      padding: 0;
+      position: absolute;
+      width: 1px;
+    }
+
+    #check_availability {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: var(--button-padding-small);
+      font-size: var(--font-size-body-25);
+      text-transform: var(--font-button-text-transform);
+      line-height: var(--line-height-button);
+      letter-spacing: var(--button-letter-spacing);
+      background: var(--color-background-button);
+      color: #fff;
+    }
+  </style>
+{% endif %}
 <script>
   window.datepickerData = {
     product: {{ product | json }},
     moneyFormat: "{{ shop.money_format }}"
   }
+  window.datepickerUtils = {}
+  window.datepickerUtils.QtySelector = (function() {
+    var selectors = {
+      input: '.js-qty__num',
+      plus: '.js-qty__adjust--plus',
+      minus: '.js-qty__adjust--minus'
+    };
+  
+    function QtySelector(el, options) {
+      this.wrapper = el;
+      this.plus = el.querySelector(selectors.plus);
+      this.minus = el.querySelector(selectors.minus);
+      this.input = el.querySelector(selectors.input);
+      this.minValue = this.input.getAttribute('min') || 1;
+  
+      var defaults = {
+        namespace: null,
+        isCart: false,
+        key: this.input.dataset.id
+      };
+  
+      this.options = Object.assign({}, defaults, options);
+  
+      this.init();
+    }
+  
+    QtySelector.prototype = Object.assign({}, QtySelector.prototype, {
+      init: function() {
+        this.plus.addEventListener('click', function() {
+          var qty = this._getQty();
+          this._change(qty + 1);
+        }.bind(this));
+  
+        this.minus.addEventListener('click', function() {
+          var qty = this._getQty();
+          this._change(qty - 1);
+        }.bind(this));
+  
+        this.input.addEventListener('change', function(evt) {
+          this._change(this._getQty());
+        }.bind(this));
+      },
+  
+      _getQty: function() {
+        var qty = this.input.value;
+        if((parseFloat(qty) == parseInt(qty)) && !isNaN(qty)) {
+          // We have a valid number!
+        } else {
+          // Not a number. Default to 1.
+          qty = 1;
+        }
+        return parseInt(qty);
+      },
+  
+      _change: function(qty) {
+        if (qty <= this.minValue) {
+          qty = this.minValue;
+        }
+  
+        this.input.value = qty;
+  
+        if (this.options.isCart) {
+          document.dispatchEvent(new CustomEvent('cart:quantity' + this.options.namespace, {
+              detail: [this.options.key, qty, this.wrapper]
+          }));
+        }
+      }
+    });
+  
+    return QtySelector;
+  })();
 </script>
-<!-- --colorTextBody -->
 
 {% schema %}
 {
