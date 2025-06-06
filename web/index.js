@@ -227,6 +227,8 @@ const filterSlots = (time, date, settings, locationSettings) => {
     locationSlots = locationSlots.map((slot) => {
       return moment.utc().startOf('day').add({ minutes: slot }).format('HH:mm');
     })
+  } else {
+    return time;
   }
   if (time?.length == 0) {
     time = locationSlots;
@@ -280,6 +282,7 @@ app.post('/api/check_availability', cors(), bodyParser.json(),
         "HK_HK_R_LkfKyotojoe": "MainDining",
         "HK_HK_R_LkfPorterhouse": "MainDining",
         "HK_HK_R_LkfTokiojoe": "Main Dining Area",
+        "HK_HK_R_LkfFumiJoe": "MainDining",
       }
       let availability = await _axios.post(`${process.env.BASE_URL}/booking/availability`, {
         date,
@@ -403,16 +406,24 @@ app.post('/api/check_availability', cors(), bodyParser.json(),
       if (dateSlots?.length > 0) {
         times = filterSlots(dateSlots, date, settings, locationSettings);
       } else if (settings["available_slot"].length > 0 && settings["available_slot"][0]) {
-        times = filterSlots(settings["every_day"].time, date, settings, locationSettings);
+        times = filterSlots(settings["every_day"].time, date, settings, false);
       } else {
         let getDay = moment(date).format("dddd").toLowerCase();
         if (settings[getDay]) {
           times = filterSlots(settings[getDay].time, date, settings, locationSettings);
         }
       }
-      times = times.filter((time) => {
-        return availableSlots.includes(time);
-      })
+      times = times.flatMap((time) => {
+        if (availableSlots.includes(time)) {
+           let newTime = moment(time, 'HH:mm').add(15, 'm').format('HH:mm');
+           if( times.includes(newTime) ){
+            return [time, newTime];
+           } else {
+            return time;
+           }  
+        }
+        return[];
+      });
       res.status(200).send({ data: times });
     } catch (error) {
       console.log(error),

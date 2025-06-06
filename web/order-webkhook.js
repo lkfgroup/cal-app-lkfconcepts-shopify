@@ -5,6 +5,7 @@ import shopify from "./shopify.js";
 import fulFillOrder from "./fulfill-order.js";
 import _ from "lodash";
 import axios from "axios";
+import parsePhoneNumber from 'libphonenumber-js'
 
 const processOrderCreatedWebhook = async (webhook, test = false) => {
 
@@ -122,6 +123,16 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
 
       request = request.join(", ")
 
+      let phone = "";
+
+      try {
+        phone = payload?.billing_address?.phone ? payload?.billing_address?.phone : "";
+        phone = parsePhoneNumber(_.get(payload, "billing_address.phone", ""), _.get(payload, "billing_address.country_code", "HK"));
+        phone = _.get(phone, "number", "");
+      } catch(error) {
+
+      }
+
       const data = {
         restaurant: getRestaurant(vendor),
         cover: quantity,
@@ -132,23 +143,26 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
         email: payload.email,
         firstname: payload?.customer?.first_name ? payload?.customer?.first_name : "",
         lastname: payload?.customer?.last_name ? payload?.customer?.last_name : "",
-        phone: payload?.customer?.phone ? payload?.customer?.phone : "",
+        phone: phone,
         notify: "yes",
         request: request
       }
       console.log(data);
       if (!test) {
       const result = await _axios.post(`${process.env.BASE_URL}/booking/create`, data);
-      console.log('test', result)
-      const syncData = {
-        confirmation: _.get(result, "data.data.confirmation", ""),
-        ...data
-      }
-      console.log("syncData", syncData);
-      const fiveTran = await axios.post("https://webhooks.fivetran.com/webhooks/b3eeafab-8e25-4388-aabf-dedb2247ecd1", syncData);
-      console.log("fiveTran", fiveTran.data);
-      const fulfill = await fulFillOrder(shop, payload.id);
-      console.log("fulfill", fulfill);
+        if (_.get(result, "data.status", "-1") == "1") {
+          const syncData = {
+            confirmation: _.get(result, "data.data.confirmation", ""),
+            ...data
+          };
+          console.log("syncData", syncData);
+
+          const fiveTran = await axios.post("https://webhooks.fivetran.com/webhooks/b3eeafab-8e25-4388-aabf-dedb2247ecd1", syncData);
+          console.log("fiveTran", fiveTran.data);
+          
+          const fulfill = await fulFillOrder(shop, payload.id);
+          console.log("fulfill", fulfill);
+        }
       }
     }
 
@@ -157,7 +171,7 @@ const processOrderCreatedWebhook = async (webhook, test = false) => {
   }
 }
 
-const RESTAURANT_ID = "HK_HK_R_LkfFumi,HK_HK_R_LkfAriaItalian,HK_HK_R_LkfBACI,HK_HK_R_LkfKyotojoe,HK_HK_R_LkfPorterhouse,HK_HK_R_LkfTokiojoe"
+const RESTAURANT_ID = "HK_HK_R_LkfFumi,HK_HK_R_LkfAriaItalian,HK_HK_R_LkfBACI,HK_HK_R_LkfKyotojoe,HK_HK_R_LkfPorterhouse,HK_HK_R_LkfTokiojoe,HK_HK_R_LkfFumiJoe"
 
 const getRestaurant = (vendor) => {
   const restaurantList = RESTAURANT_ID.split(',')
